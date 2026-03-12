@@ -41,6 +41,10 @@ jobs:
       - name: Build
         run: cargo build
 
+      - name: Install language plugins
+        run: |
+          cargo run -- plugin add-standard || true
+
       - name: Test
         run: cargo test
 
