@@ -249,10 +249,6 @@ sentrux is built on three beliefs:
 
 </div>
 
-## Privacy
-
-sentrux checks for updates once per day, sending only the version number and platform (e.g., `v0.3.4`, `darwin-arm64`). No personal data, project names, or code content is collected. Disable with `export SENTRUX_NO_UPDATE_CHECK=1`.
-
 ## License
 
 [MIT](LICENSE)
