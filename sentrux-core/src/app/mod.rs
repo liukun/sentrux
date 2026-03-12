@@ -19,6 +19,7 @@ mod scanning_tests;
 pub mod settings_panel;
 pub mod state;
 pub mod status_bar;
+pub mod update_check;
 pub mod toolbar;
 pub mod update_loop;
 pub mod watcher;
