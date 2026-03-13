@@ -250,6 +250,20 @@ Missing a language? [Open an issue](https://github.com/sentrux/sentrux/issues) o
 
 ---
 
+## Telemetry
+
+sentrux sends a single anonymous ping once per day to check for updates — same as Homebrew, VS Code, and cargo. No code, filenames, or personal data is ever transmitted.
+
+**What's sent:** version, platform (e.g. `darwin-arm64`), mode (gui/mcp/cli), plugin count, scan count, health grade letter. That's it.
+
+**Opt out:**
+
+```bash
+export SENTRUX_NO_UPDATE_CHECK=1
+```
+
+---
+
 ## Philosophy
 
 **The human role is changing — from writing code to governing code.**
