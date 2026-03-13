@@ -362,7 +362,13 @@ fn find_max_non_foundation_blast(
     for (path, &blast) in blast_radius {
         let module = crate::core::path_utils::module_of(path).to_string();
         let ca = file_fan_in.get(path.as_str()).copied().unwrap_or(0);
-        let is_foundation = is_foundation_module(&module) || ca >= MIN_FILE_FAN_IN_FOUNDATION;
+        // Package-index files (__init__.py, index.js, mod.rs, etc.) are barrel
+        // re-exporters — their high blast radius reflects re-exports, not genuine
+        // change risk. Treat them as foundation regardless of instability.
+        let is_barrel = super::is_package_index_file(path);
+        let is_foundation = is_barrel
+            || is_foundation_module(&module)
+            || ca >= MIN_FILE_FAN_IN_FOUNDATION;
         if !is_foundation && blast > max_non_foundation {
             max_non_foundation = blast;
         }

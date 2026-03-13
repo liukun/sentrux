@@ -48,6 +48,14 @@ use crate::core::snapshot::Snapshot;
 use crate::core::types::FileNode;
 use std::collections::{HashMap, HashSet};
 
+/// Check if a file path ends with a known package-index filename.
+/// Package-index files (__init__.py, mod.rs, index.js, etc.) act as barrel
+/// re-exporters whose fan-in reflects re-exports, not genuine coupling.
+pub(crate) fn is_package_index_file(path: &str) -> bool {
+    let filename = path.rsplit('/').next().unwrap_or(path);
+    crate::analysis::resolver::helpers::PACKAGE_INDEX_FILES.contains(&filename)
+}
+
 /// Compute per-file fan-out and fan-in counts from import edges.
 /// Excludes mod declarations (Rust `mod foo;`) which are structural, not coupling.
 fn compute_fan_maps(import_edges: &[ImportEdge]) -> (HashMap<String, usize>, HashMap<String, usize>) {
@@ -85,11 +93,16 @@ fn detect_god_files(
 
 /// Detect hotspot files: high fan-in files that are also unstable (I >= 0.15).
 /// Stable foundations (high fan-in + low fan-out) are excluded per Martin's SDP.
+/// Package-index files (__init__.py, index.js, mod.rs, etc.) are excluded because
+/// their fan-in reflects barrel re-exports, not genuine coupling hotspots.
 fn detect_hotspot_files(fan_in: &HashMap<String, usize>, fan_out: &HashMap<String, usize>) -> Vec<FileMetric> {
     let mut v: Vec<FileMetric> = fan_in
         .iter()
         .filter(|(path, &count)| {
             if count <= FAN_IN_THRESHOLD { return false; }
+            // Exclude package-index / barrel files — their high fan-in is an
+            // artifact of re-exporting, not a design flaw.
+            if is_package_index_file(path) { return false; }
             // Exclude stable foundations (I < 0.15): high fan-in + low fan-out
             // is GOOD architecture (Martin's SDP). Only flag unstable hotspots.
             let fo = *fan_out.get(path.as_str()).unwrap_or(&0);
@@ -115,6 +128,7 @@ fn compute_instability(
     }
     let mut v: Vec<InstabilityMetric> = all_files
         .iter()
+        .filter(|&&path| !testgap::is_test_file(path))
         .map(|&path| {
             let ce = *fan_out.get(path).unwrap_or(&0);
             let ca = *fan_in.get(path).unwrap_or(&0);

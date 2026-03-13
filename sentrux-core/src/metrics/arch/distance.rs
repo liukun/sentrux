@@ -115,6 +115,26 @@ fn is_abstract_kind(kind: Option<&str>) -> bool {
     matches!(kind, Some("interface") | Some("adt"))
 }
 
+/// Python base classes that indicate an abstract type.
+/// `typing.Protocol` (PEP 544) is the idiomatic way to define structural
+/// interfaces in modern Python — equivalent to Go interfaces or TypeScript
+/// structural types. `abc.ABC` / `ABCMeta` are the traditional approach.
+const PYTHON_ABSTRACT_BASES: &[&str] = &[
+    "Protocol", "ABC", "ABCMeta",
+];
+
+/// Check whether a class's base classes indicate it is abstract (Python).
+/// Covers `typing.Protocol`, `abc.ABC`, and `abc.ABCMeta`.
+fn has_abstract_base(bases: Option<&Vec<String>>) -> bool {
+    match bases {
+        Some(bs) => bs.iter().any(|b| {
+            let name = b.rsplit('.').next().unwrap_or(b);
+            PYTHON_ABSTRACT_BASES.contains(&name)
+        }),
+        None => false,
+    }
+}
+
 /// Count abstract and total types in a single file node's class list.
 fn count_file_types(
     node: &crate::core::types::FileNode,
@@ -131,7 +151,7 @@ fn count_file_types(
     let mut abstract_count = 0usize;
     for cls in classes {
         total_count += 1;
-        if is_abstract_kind(cls.k.as_deref()) {
+        if is_abstract_kind(cls.k.as_deref()) || has_abstract_base(cls.b.as_ref()) {
             abstract_count += 1;
         }
     }
