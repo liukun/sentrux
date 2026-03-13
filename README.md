@@ -107,15 +107,53 @@ sentrux gives you the sensor. Your rules give you the spec. The agent is the act
 
 ## Install
 
+**Step 1 — Install the binary**
+
 ```bash
 brew install sentrux/tap/sentrux
 ```
+
+or
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
 Pure Rust. Single binary. No runtime dependencies. 23 languages via tree-sitter plugins.
+
+**Step 2 — Run it**
+
+```bash
+sentrux                    # open the GUI — live treemap of your project
+sentrux /path/to/project   # open GUI scanning a specific directory
+sentrux check .            # check rules (CI-friendly, exits 0 or 1)
+sentrux gate --save .      # save baseline before agent session
+sentrux gate .             # compare after — catches degradation
+```
+
+**Step 3 — Connect to your AI agent (optional)**
+
+Give your agent real-time access to structural health via [MCP](https://modelcontextprotocol.io).
+
+Claude Code:
+
+```
+/plugin marketplace add sentrux/sentrux
+/plugin install sentrux
+```
+
+Cursor / Windsurf / other MCP clients — add to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "sentrux": {
+      "command": "sentrux",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
 
 **From source / upgrade / troubleshooting**
 
@@ -136,41 +174,7 @@ WGPU_BACKEND=vulkan sentrux    # force Vulkan
 WGPU_BACKEND=gl sentrux        # force OpenGL
 ```
 
-## Quick start
-
-```bash
-sentrux                    # open the GUI — live treemap of your project
-sentrux /path/to/project   # open GUI scanning a specific directory
-sentrux check .            # check rules (CI-friendly, exits 0 or 1)
-sentrux gate --save .      # save baseline before agent session
-sentrux gate .             # compare after — catches degradation
-```
-
 ## MCP server
-
-sentrux runs as an [MCP](https://modelcontextprotocol.io) server — your AI agent can query structural health mid-session.
-
-**Claude Code (plugin — recommended):**
-
-```
-/plugin marketplace add sentrux/sentrux
-/plugin install sentrux
-```
-
-**Claude Code / Cursor / Windsurf (manual):**
-
-```json
-{
-  "mcpServers": {
-    "sentrux": {
-      "command": "sentrux",
-      "args": ["--mcp"]
-    }
-  }
-}
-```
-
-Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent.
 
 **Agent workflow**
 
