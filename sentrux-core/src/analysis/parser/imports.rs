@@ -170,22 +170,28 @@ pub(crate) fn filter_html_imports(imports: &mut Vec<String>) {
 // ── Base class extraction ───────────────────────────────────────────────
 
 /// Extract base/parent class names from a class definition AST node.
-/// Walks the node's children to find language-specific superclass structures.
+///
+/// Uses three strategies in order:
+/// 1. Profile `base_class_node_kinds` (data-driven, covers most languages)
+/// 2. Compiled `base_class_extractor` (for Python which needs special handling)
+/// 3. Generic fallback (pattern-match on node kind names)
 pub(crate) fn extract_base_classes(node: tree_sitter::Node, content: &[u8], lang: &str) -> Option<Vec<String>> {
+    let profile = crate::analysis::lang_registry::profile(lang);
     let mut bases = Vec::new();
-    match lang {
-        "python" => lang_extractors::extract_bases_python(node, content, &mut bases),
-        "java" | "kotlin" | "csharp" | "scala" => lang_extractors::extract_bases_jvm(node, content, &mut bases),
-        "typescript" | "javascript" => {
-            lang_extractors::extract_bases_by_kinds(node, content, &["class_heritage", "extends_clause"], &mut bases);
+
+    if !profile.semantics.base_class_node_kinds.is_empty() {
+        // Data-driven: use node kinds from plugin.toml
+        let kinds: Vec<&str> = profile.semantics.base_class_node_kinds.iter().map(|s| s.as_str()).collect();
+        lang_extractors::extract_bases_by_kinds(node, content, &kinds, &mut bases);
+    } else {
+        // Compiled extractor fallback
+        match profile.semantics.base_class_extractor.as_str() {
+            "python" => lang_extractors::extract_bases_python(node, content, &mut bases),
+            "jvm" => lang_extractors::extract_bases_jvm(node, content, &mut bases),
+            _ => lang_extractors::extract_bases_generic(node, content, &mut bases),
         }
-        "ruby" => lang_extractors::extract_bases_by_kinds(node, content, &["superclass"], &mut bases),
-        "cpp" | "c" => lang_extractors::extract_bases_by_kinds(node, content, &["base_class_clause"], &mut bases),
-        "php" => {
-            lang_extractors::extract_bases_by_kinds(node, content, &["base_clause", "class_interface_clause"], &mut bases);
-        }
-        _ => lang_extractors::extract_bases_generic(node, content, &mut bases),
     }
+
     if bases.is_empty() { None } else { Some(bases) }
 }
 

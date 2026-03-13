@@ -35,11 +35,7 @@ pub(crate) struct SuffixIndex<'a> {
 /// Package index files -> parent dir. Everything else -> strip extension.
 pub(super) fn file_to_module_path(file_path: &str) -> &str {
     let filename = file_path.rsplit('/').next().unwrap_or(file_path);
-    let is_package_index = matches!(filename,
-        "__init__.py" | "mod.rs" |
-        "index.js" | "index.ts" | "index.jsx" | "index.tsx" |
-        "index.mjs" | "index.cjs"
-    );
+    let is_package_index = PACKAGE_INDEX_FILES.contains(&filename);
     if is_package_index {
         file_path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("")
     } else {

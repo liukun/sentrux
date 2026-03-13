@@ -36,9 +36,19 @@ pub struct LanguageSemantics {
     pub import_extractor: String,
 
     /// Key into the compiled base-class extractor registry.
-    /// Each language has different AST node kinds for inheritance
-    /// (Python: `argument_list`, Java: `superclass`, TS: `class_heritage`).
+    /// Only needed for Python (uses `argument_list` which needs special handling).
+    /// Most languages use `base_class_node_kinds` instead (data-driven).
     pub base_class_extractor: String,
+
+    /// AST node kinds that contain base class / parent type declarations.
+    /// The platform walks class definition children and collects type identifiers
+    /// from nodes matching these kinds. This replaces compiled extractors for
+    /// most languages.
+    /// Examples: `["class_heritage", "extends_clause"]` for TypeScript,
+    ///           `["superclass"]` for Ruby, `["base_clause"]` for C++.
+    /// If empty, falls back to `base_class_extractor` key or generic detection.
+    #[serde(default)]
+    pub base_class_node_kinds: Vec<String>,
 
     // ── Comment & string syntax ──
 
@@ -269,6 +279,7 @@ impl Default for LanguageSemantics {
             dot_is_module_separator: false,
             import_extractor: "fallback".into(),
             base_class_extractor: "generic".into(),
+            base_class_node_kinds: Vec::new(),
             hash_is_comment: false,
             has_triple_quote_strings: false,
             package_index_files: Vec::new(),
