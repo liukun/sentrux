@@ -549,6 +549,33 @@ capabilities = ["functions", "classes", "imports"]
 // GUI
 // ---------------------------------------------------------------------------
 
+/// Probe which wgpu backends have usable GPU adapters on this system.
+/// Returns only backends that actually have hardware support, avoiding
+/// blind attempts that panic on unsupported drivers.
+fn probe_available_backends() -> Vec<eframe::wgpu::Backends> {
+    let candidates = [
+        ("Primary+GL", eframe::wgpu::Backends::PRIMARY | eframe::wgpu::Backends::GL),
+        ("GL-only",    eframe::wgpu::Backends::GL),
+        ("Primary",    eframe::wgpu::Backends::PRIMARY),
+    ];
+
+    let mut available = Vec::new();
+    for (label, backends) in &candidates {
+        let instance = eframe::wgpu::Instance::new(&eframe::wgpu::InstanceDescriptor {
+            backends: *backends,
+            ..Default::default()
+        });
+        let adapters: Vec<_> = instance.enumerate_adapters(eframe::wgpu::Backends::all());
+        if !adapters.is_empty() {
+            eprintln!("[gpu] probe {label}: {} adapter(s) found", adapters.len());
+            available.push(*backends);
+        } else {
+            eprintln!("[gpu] probe {label}: no adapters");
+        }
+    }
+    available
+}
+
 fn run_gui(path: Option<String>) -> eframe::Result<()> {
     let initial_path = path
         .map(|p| {
@@ -559,19 +586,19 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
         })
         .filter(|p| std::path::Path::new(p).is_dir());
 
-    // Runtime backend fallback: try all backends first, then narrow down on failure.
-    // This handles every Linux GPU driver situation without compile-time guessing.
-    // User can always override with WGPU_BACKEND=vulkan|gl|dx12|metal env var.
+    // Determine backends: respect user override, otherwise probe hardware.
     let env_backends = eframe::wgpu::Backends::from_env();
-    let backend_attempts: Vec<eframe::wgpu::Backends> = if env_backends.is_some() {
-        // User explicitly chose — respect it, no fallback
-        vec![env_backends.unwrap()]
+    let backend_attempts: Vec<eframe::wgpu::Backends> = if let Some(user_choice) = env_backends {
+        // User explicitly chose via WGPU_BACKEND — respect it, no fallback
+        vec![user_choice]
     } else {
-        vec![
-            eframe::wgpu::Backends::PRIMARY | eframe::wgpu::Backends::GL, // try everything
-            eframe::wgpu::Backends::GL,                                    // GL-only fallback
-            eframe::wgpu::Backends::PRIMARY,                               // native-only fallback
-        ]
+        let probed = probe_available_backends();
+        if probed.is_empty() {
+            eprintln!("[gpu] no GPU adapters found on this system");
+            eprintln!("[gpu] hint: try setting WGPU_BACKEND=vulkan or WGPU_BACKEND=gl");
+            std::process::exit(1);
+        }
+        probed
     };
 
     let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" };
@@ -599,21 +626,30 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
         };
 
         let path_clone = initial_path.clone();
-        let result = eframe::run_native(
-            "Sentrux",
-            options,
-            Box::new(move |cc| Ok(Box::new(app::SentruxApp::new(cc, path_clone)))),
-        );
+        // catch_unwind as safety net: wgpu can panic on surface creation
+        // even when adapter enumeration succeeded (driver bugs, missing DRI3)
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            eframe::run_native(
+                "Sentrux",
+                options,
+                Box::new(move |cc| Ok(Box::new(app::SentruxApp::new(cc, path_clone)))),
+            )
+        }));
 
         match result {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                eprintln!("[gpu] backend {:?} failed: {}", backends, e);
-                if i + 1 == backend_attempts.len() {
-                    eprintln!("[gpu] all backends exhausted — try setting WGPU_BACKEND=gl or WGPU_BACKEND=vulkan");
-                    return Err(e);
-                }
+            Ok(Ok(())) => return Ok(()),
+            Ok(Err(e)) => {
+                eprintln!("[gpu] backend {:?} failed: {e}", backends);
             }
+            Err(_panic) => {
+                eprintln!("[gpu] backend {:?} panicked (driver issue)", backends);
+            }
+        }
+
+        if i + 1 == backend_attempts.len() {
+            eprintln!("[gpu] all backends exhausted");
+            eprintln!("[gpu] hint: try setting WGPU_BACKEND=vulkan or WGPU_BACKEND=gl");
+            std::process::exit(1);
         }
     }
     Ok(())
