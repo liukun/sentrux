@@ -305,7 +305,7 @@ mod tests {
                     cls: None,
                     imp: Some(vec!["./utils".to_string()]),
                     co: None,
-                    tags: None,
+                    tags: None, comment_lines: None,
                 }),
             ),
             make_file("utils.ts", "src/utils.ts", "typescript", None),
@@ -348,7 +348,7 @@ mod tests {
                 cls: None,
                 imp: Some(vec!["react".to_string()]),
                 co: None,
-                tags: None,
+                tags: None, comment_lines: None,
             }),
         )];
 
@@ -390,7 +390,7 @@ mod tests {
                 cls: None,
                 imp: Some(vec!["./a".to_string()]),
                 co: None,
-                tags: None,
+                tags: None, comment_lines: None,
             }),
         )];
 

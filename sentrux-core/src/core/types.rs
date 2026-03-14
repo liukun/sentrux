@@ -59,6 +59,10 @@ pub struct StructuralAnalysis {
     /// Semantic tags for classification (e.g. "test", "config", "entry")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
+    /// Comment line count from tree-sitter AST. Not serialized — internal use only.
+    /// Computed during parse to replace tokei dependency.
+    #[serde(skip)]
+    pub comment_lines: Option<u32>,
 }
 
 /// Information about a single function or method.

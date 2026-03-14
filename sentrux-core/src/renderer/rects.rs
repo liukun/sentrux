@@ -13,6 +13,21 @@ use crate::layout::types::EdgeFilter;
 use egui::{Color32, CornerRadius, Stroke, StrokeKind};
 use std::collections::HashSet;
 
+/// Compute relative luminance (WCAG formula) and return a high-contrast text color.
+/// Uses sRGB linearization for perceptual accuracy.
+#[inline]
+fn contrast_text_color(bg: Color32, light: Color32, dark: Color32) -> Color32 {
+    let [r, g, b, _] = bg.to_array();
+    // sRGB → linear
+    #[inline]
+    fn lin(c: u8) -> f32 {
+        let s = c as f32 / 255.0;
+        if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+    }
+    let lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    if lum > 0.18 { dark } else { light }
+}
+
 /// Bundles common drawing parameters to reduce function argument counts.
 struct DrawCtx<'a> {
     painter: &'a egui::Painter,
@@ -229,7 +244,7 @@ fn draw_file_rect(
         draw_file_borders(&dctx, screen_rect, inset_rect, r, ctx);
 
         if inset_rect.width() > dctx.cw * 2.0 && inset_rect.height() > dctx.fs + dctx.py * 2.0 {
-            draw_file_text(dctx, inset_rect, r, ctx);
+            draw_file_text(dctx, inset_rect, r, ctx, color);
         }
     }
 }
@@ -267,11 +282,13 @@ fn draw_file_borders(
 }
 
 /// Draw file name and stats line text inside a file rect.
+/// Uses adaptive text color based on background luminance for readability.
 fn draw_file_text(
     dctx: &DrawCtx,
     inset_rect: egui::Rect,
     r: &LayoutRectSlim,
     ctx: &RenderContext,
+    bg_color: Color32,
 ) {
     let name = r.path.rsplit('/').next().unwrap_or(&r.path);
     let display_name = truncate_to_fit(name, inset_rect.width(), dctx.cw, dctx.px, 2);
@@ -280,6 +297,9 @@ fn draw_file_text(
         return;
     }
 
+    let label_color = contrast_text_color(bg_color, dctx.tc.file_label, Color32::from_rgb(20, 20, 25));
+    let stats_color = contrast_text_color(bg_color, dctx.tc.text_secondary, Color32::from_rgb(60, 60, 70));
+
     let text_x = inset_rect.left() + dctx.px;
     let text_y = inset_rect.top() + dctx.py;
     let name_bottom = dctx.painter.text(
@@ -287,10 +307,10 @@ fn draw_file_text(
         egui::Align2::LEFT_TOP,
         display_name,
         egui::FontId::monospace(dctx.fs),
-        dctx.tc.file_label,
+        label_color,
     ).max.y;
 
-    draw_stats_line(dctx, inset_rect, r, ctx, text_x, name_bottom);
+    draw_stats_line(dctx, inset_rect, r, ctx, text_x, name_bottom, stats_color);
 }
 
 /// Truncate a string to fit within `width` given padding and char width.
@@ -314,6 +334,7 @@ fn draw_stats_line(
     ctx: &RenderContext,
     text_x: f32,
     name_bottom: f32,
+    stats_color: Color32,
 ) {
     let gap = dctx.fs * 0.1;
     if name_bottom + gap + dctx.fs >= inset_rect.bottom() - dctx.py {
@@ -327,7 +348,7 @@ fn draw_stats_line(
             egui::Align2::LEFT_TOP,
             stat_display,
             egui::FontId::monospace(dctx.fs),
-            dctx.tc.text_secondary,
+            stats_color,
         );
     }
 }

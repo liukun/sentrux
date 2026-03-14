@@ -16,7 +16,7 @@ mod tests {
                 cls: None,
                 imp: Some(vec!["./utils".to_string()]),
                 co: None,
-                tags: None,
+                tags: None, comment_lines: None,
             }),
         )];
 
@@ -45,7 +45,7 @@ mod tests {
                     cls: None,
                     imp: Some(vec![".utils".to_string()]),
                     co: None,
-                    tags: None,
+                    tags: None, comment_lines: None,
                 }),
             ),
             make_file(
@@ -57,7 +57,7 @@ mod tests {
                         n: "helper".to_string(),
                         sl: 1, el: 3, ln: 3, cc: None, cog: None, pc: None, bh: None, d: None, co: None,
                     }]),
-                    cls: None, imp: None, co: None, tags: None,
+                    cls: None, imp: None, co: None, tags: None, comment_lines: None,
                 }),
             ),
         ];
@@ -82,7 +82,7 @@ mod tests {
                     functions: None, cls: None,
                     imp: Some(vec!["math".to_string()]),
                     co: Some(vec!["sqrt".to_string()]),
-                    tags: None,
+                    tags: None, comment_lines: None,
                 }),
             ),
             make_file("utils.py", "utils.py", "python",
@@ -91,7 +91,7 @@ mod tests {
                         n: "sqrt".to_string(),
                         sl: 1, el: 3, ln: 3, cc: None, cog: None, pc: None, bh: None, d: None, co: None,
                     }]),
-                    cls: None, imp: None, co: None, tags: None,
+                    cls: None, imp: None, co: None, tags: None, comment_lines: None,
                 }),
             ),
         ];
@@ -112,14 +112,14 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["math".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("bar.py", "src/bar.py", "python",
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["math".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
         ];
@@ -144,12 +144,12 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["math".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("math.py", "src/deep/math.py", "python",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, imp: None, co: None, tags: None,
+                    functions: None, cls: None, imp: None, co: None, tags: None, comment_lines: None,
                 }),
             ),
         ];
@@ -173,7 +173,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["beemem/capture".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("capture.rs", "src/capture.rs", "rust", None),
@@ -200,7 +200,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["std/collections/HashMap".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
         ];
@@ -223,7 +223,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["std/io".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("io.rs", "src/io.rs", "rust", None),
@@ -239,7 +239,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["std/io".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("io.rs", "src/io.rs", "rust", None),
@@ -255,7 +255,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["std/io".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("io.rs", "src/io.rs", "rust", None),
@@ -281,7 +281,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["app.js".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("app.js", "app.js", "javascript", None),
@@ -307,7 +307,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["/src/style.css".to_string(), "/src/main.ts".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("style.css", "webapp/src/style.css", "css", None),
@@ -335,7 +335,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["/src/style.css".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("style.css", "src/style.css", "css", None),
@@ -360,7 +360,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["../reset.css".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("reset.css", "reset.css", "css", None),
@@ -385,7 +385,7 @@ mod tests {
             Some(StructuralAnalysis {
                 functions: None, cls: None,
                 imp: Some(vec!["./style.css".to_string()]),
-                co: None, tags: None,
+                co: None, tags: None, comment_lines: None,
             }),
         )];
 
@@ -406,7 +406,7 @@ mod tests {
             Some(StructuralAnalysis {
                 functions: None, cls: None,
                 imp: Some(vec!["nonexistent.js".to_string()]),
-                co: None, tags: None,
+                co: None, tags: None, comment_lines: None,
             }),
         )];
 
@@ -423,7 +423,7 @@ mod tests {
             Some(StructuralAnalysis {
                 functions: None, cls: None,
                 imp: Some(vec!["app.js".to_string()]),
-                co: None, tags: None,
+                co: None, tags: None, comment_lines: None,
             }),
         )];
 

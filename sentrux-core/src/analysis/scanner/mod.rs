@@ -9,7 +9,7 @@ mod tree;
 pub mod rescan;
 
 use self::common::{
-    MAX_FILES, ScanLimits, count_lines_batch, detect_lang,
+    MAX_FILES, ScanLimits, count_lines_from_bytes, detect_lang,
     should_ignore_dir, should_ignore_file,
 };
 use self::tree::build_tree;
@@ -194,89 +194,97 @@ fn collect_paths_walk(root: &Path, file_size_limit: u64) -> Vec<CollectedFile> {
 }
 
 
-/// Scan a single file into a FileNode (no tokei call — line counts provided externally)
-fn scan_file(
+/// Scan + parse a single file in one pass: read once, count lines, tree-sitter parse.
+/// No tokei dependency — line counts computed from raw bytes + AST comment nodes.
+fn scan_and_parse_file(
     collected: &CollectedFile,
     root: &Path,
-    line_counts: &HashMap<PathBuf, (u32, u32, u32, u32)>,
+    max_parse_size_kb: usize,
 ) -> FileNode {
     let rel = collected.path.strip_prefix(root).unwrap_or(&collected.path);
-    let (lines, logic, comments, blanks) = line_counts
-        .get(&collected.path)
-        .or_else(|| {
-            // Try canonicalized path as fallback key (symlinks, case-insensitive FS).
-            // Log errors at trace level — canonicalize can fail benignly. [ref:4540215f]
-            match collected.path.canonicalize() {
-                Ok(cp) => line_counts.get(&cp),
-                Err(_) => None,
+    let rel_str = rel.to_string_lossy().to_string();
+    let name = collected.path.file_name().unwrap_or_default().to_string_lossy().to_string();
+    let lang = detect_lang(&collected.path);
+
+    // Read content ONCE — used for both line counting and tree-sitter parse
+    let content = match fs::read(&collected.path) {
+        Ok(c) => c,
+        Err(_) => {
+            return FileNode {
+                path: rel_str, name, is_dir: false,
+                lines: 0, logic: 0, comments: 0, blanks: 0,
+                funcs: 0, mtime: collected.mtime, gs: String::new(),
+                lang, sa: None, children: None,
+            };
+        }
+    };
+
+    // Count total lines + blank lines from raw bytes (microseconds, zero alloc)
+    let lc = count_lines_from_bytes(&content);
+
+    // Tree-sitter parse (if language supported and file within parse size limit)
+    let (sa, comment_count) = if !lang.is_empty() && lang != "unknown"
+        && content.len() <= max_parse_size_kb * 1024
+    {
+        match crate::analysis::parser::parse_file_from_content(&content, &lang) {
+            Some(sa) => {
+                let cl = sa.comment_lines.unwrap_or(0);
+                (Some(sa), cl)
             }
-        })
-        .copied()
-        .unwrap_or_else(|| {
-            // Fallback: raw line count for files tokei didn't recognize.
-            // Set logic=0 to avoid inflating code metrics — we only know total lines.
-            if let Ok(content) = fs::read_to_string(&collected.path) {
-                let total = content.lines().count() as u32;
-                (total, 0, 0, 0)
-            } else {
-                (0, 0, 0, 0)
-            }
-        });
+            None => (None, 0),
+        }
+    } else {
+        (None, 0)
+    };
+
+    let total = lc.total;
+    let blanks = lc.blanks;
+    let comments = comment_count;
+    let logic = total.saturating_sub(comments).saturating_sub(blanks);
+    let funcs = sa.as_ref().and_then(|s| s.functions.as_ref()).map_or(0, |v| v.len() as u32);
 
     FileNode {
-        path: rel.to_string_lossy().to_string(),
-        name: collected
-            .path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string(),
-        is_dir: false,
-        lines,
-        logic,
-        comments,
-        blanks,
-        funcs: 0,
-        mtime: collected.mtime,
-        gs: String::new(),
-        lang: detect_lang(&collected.path),
-        sa: None,
-        children: None,
+        path: rel_str, name, is_dir: false,
+        lines: total, logic, comments, blanks,
+        funcs, mtime: collected.mtime, gs: String::new(),
+        lang, sa, children: None,
     }
 }
 
-
-/// Collect files from disk, count lines, and produce FileNode records.
-/// Returns (files, total_files_count).
+/// Collect files, scan + parse each in parallel. One read per file, cancellable.
+/// Replaces the old three-phase approach (collect → tokei → scan → parse).
 fn walk_and_scan_files(
     root: &Path,
     max_file_size: u64,
+    max_parse_size_kb: usize,
     scan_t0: std::time::Instant,
     emit: &dyn Fn(&str, u8),
+    cancel: Option<&std::sync::atomic::AtomicBool>,
 ) -> Vec<FileNode> {
     emit("Collecting files\u{2026}", 5);
     let collected = collect_paths(root, max_file_size * 1024);
-    let total_files = collected.len() as u32;
+    let total_files = collected.len();
     eprintln!("[scan] collect_paths: {:.1}ms ({} files)", scan_t0.elapsed().as_secs_f64() * 1000.0, total_files);
 
-    emit(&format!("Counting lines ({total_files} files)"), 15);
-    let all_paths: Vec<PathBuf> = collected.iter().map(|c| c.path.clone()).collect();
-    let tokei_t0 = std::time::Instant::now();
-    let line_counts = count_lines_batch(&all_paths);
-    eprintln!("[scan] count_lines: {:.1}ms (tokei: {:.1}ms, {} entries returned)", scan_t0.elapsed().as_secs_f64() * 1000.0, tokei_t0.elapsed().as_secs_f64() * 1000.0, line_counts.len());
+    emit(&format!("Scanning & parsing ({total_files} files)"), 15);
 
-    {
-        let hits = collected.iter().filter(|c| line_counts.contains_key(&c.path)).count();
-        let misses = collected.len() - hits;
-        eprintln!("[scan] tokei key hit rate: {}/{} ({} misses)", hits, collected.len(), misses);
-    }
-
-    emit(&format!("Scanning files ({total_files} files)"), 30);
+    // Parallel scan + parse per file with cancel check.
+    // Progress is reported via atomic counter — the emit callback runs on
+    // the main scan thread after rayon completes, not inside rayon workers.
     let files: Vec<FileNode> = collected
         .par_iter()
-        .map(|c| scan_file(c, root, &line_counts))
+        .filter_map(|c| {
+            if let Some(ct) = cancel {
+                if ct.load(std::sync::atomic::Ordering::Relaxed) {
+                    return None;
+                }
+            }
+            Some(scan_and_parse_file(c, root, max_parse_size_kb))
+        })
         .collect();
-    eprintln!("[scan] scan_files: {:.1}ms", scan_t0.elapsed().as_secs_f64() * 1000.0);
+
+    eprintln!("[scan] scan_and_parse: {:.1}ms ({} files)", scan_t0.elapsed().as_secs_f64() * 1000.0, files.len());
+    emit(&format!("Scanned {total_files} files"), 50);
     files
 }
 
@@ -296,72 +304,6 @@ fn apply_git_statuses(files: &mut [FileNode], root_path: &str, scan_t0: std::tim
 /// Poll parse progress until completion, emitting progress updates.
 /// Accepts the parse thread handle to detect panics — if the thread dies
 /// before all work is done, we break instead of spinning forever. [C2 fix]
-fn poll_parse_progress(
-    progress: &std::sync::Arc<crate::analysis::parser::ParseProgress>,
-    parse_handle: &std::thread::JoinHandle<Vec<(String, crate::core::types::StructuralAnalysis)>>,
-    emit: &dyn Fn(&str, u8),
-) {
-    let real_total = progress.total;
-    if real_total == 0 {
-        emit("Parsing structure (0/0)", 80);
-        return;
-    }
-    loop {
-        let done = progress.done.load(std::sync::atomic::Ordering::Relaxed);
-        let pct = 50 + (done * 30 / real_total);
-        emit(&format!("Parsing structure ({done}/{real_total})"), pct as u8);
-        if done >= real_total { break; }
-        // Bail out if the parse thread has finished (panicked or completed early)
-        // to avoid spinning forever when done < real_total due to a panic.
-        if parse_handle.is_finished() { break; }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-}
-
-/// Parse structural analysis for all parseable files, polling progress.
-fn parse_structure(
-    files: &mut [FileNode],
-    root: &Path,
-    max_parse_size: usize,
-    scan_t0: std::time::Instant,
-    emit: &dyn Fn(&str, u8),
-) {
-    let parseable_count = files.iter().filter(|f| !f.lang.is_empty() && f.lang != "unknown").count();
-    emit(&format!("Parsing structure ({parseable_count} files)"), 50);
-    let parse_inputs: Vec<(String, String, String)> = files
-        .iter()
-        .filter(|f| !f.lang.is_empty() && f.lang != "unknown")
-        .map(|f| {
-            let abs = root.join(&f.path).to_string_lossy().to_string();
-            (abs, f.path.clone(), f.lang.clone())
-        })
-        .collect();
-
-    let progress = std::sync::Arc::new(crate::analysis::parser::ParseProgress {
-        done: std::sync::atomic::AtomicUsize::new(0),
-        total: parse_inputs.len(),
-    });
-    let prog_clone = progress.clone();
-    let parse_handle = std::thread::spawn({
-        move || {
-            crate::analysis::parser::parse_files_batch_with_progress(&parse_inputs, max_parse_size, Some(&prog_clone))
-        }
-    });
-
-    poll_parse_progress(&progress, &parse_handle, emit);
-
-    let sa_results = parse_handle.join().expect("parse thread panicked");
-    eprintln!("[scan] parse_files: {:.1}ms ({} parseable)", scan_t0.elapsed().as_secs_f64() * 1000.0, parseable_count);
-    let sa_map: HashMap<String, crate::core::types::StructuralAnalysis> =
-        sa_results.into_iter().collect();
-    for file in files.iter_mut() {
-        if let Some(sa) = sa_map.get(&file.path) {
-            file.funcs = sa.functions.as_ref().map_or(0, |v| v.len() as u32);
-            file.sa = Some(sa.clone());
-        }
-    }
-}
-
 /// Context for the tree-building and graph-building phase of a scan.
 struct BuildContext<'a> {
     root: &'a Path,
@@ -422,16 +364,14 @@ fn build_tree_and_graphs(
     }
 }
 
-/// Main scan function: walk directory, count lines in batch, build tree.
-/// Accepts an optional progress callback to report scan phases.
-/// Accepts an optional `on_tree_ready` callback that fires after tree building
-/// but BEFORE graph building — allows the caller to emit a partial snapshot
-/// so the frontend can render rectangles ~1-2s earlier. [ref:7f9a39c8]
+/// Main scan function: collect files, scan + parse each in parallel, build tree + graphs.
+/// Single read per file — no tokei dependency, immediate cancellation between files.
 pub fn scan_directory(
     root_path: &str,
     on_progress: Option<&dyn Fn(ScanProgress)>,
     on_tree_ready: Option<&dyn Fn(Snapshot)>,
     limits: &ScanLimits,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
 ) -> Result<ScanResult, AppError> {
     let scan_t0 = std::time::Instant::now();
     let root = Path::new(root_path);
@@ -445,9 +385,21 @@ pub fn scan_directory(
         }
     };
 
-    let mut files = walk_and_scan_files(root, limits.max_file_size_kb, scan_t0, &emit);
+    // Single pass: collect + scan + parse per file (no tokei, no separate parse phase)
+    let mut files = walk_and_scan_files(
+        root, limits.max_file_size_kb, limits.max_parse_size_kb,
+        scan_t0, &emit, cancel,
+    );
+
+    // Check cancel
+    if let Some(ct) = cancel {
+        if ct.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(AppError::Scan("Scan cancelled".into()));
+        }
+    }
+
     apply_git_statuses(&mut files, root_path, scan_t0, &emit);
-    parse_structure(&mut files, root, limits.max_parse_size_kb, scan_t0, &emit);
+
     let bctx = BuildContext {
         root, max_call_targets: limits.max_call_targets, scan_t0, emit: &emit, on_tree_ready,
     };

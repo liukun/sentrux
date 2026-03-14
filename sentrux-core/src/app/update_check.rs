@@ -159,8 +159,10 @@ fn check_and_notify(current_version: &str) {
     let scans = SCANS.load(Ordering::Relaxed);
     let mcp = MCP_CALLS.load(Ordering::Relaxed);
     let gates = GATE_RUNS.load(Ordering::Relaxed);
+    let files = LAST_FILES.load(Ordering::Relaxed);
+    let grade = LAST_GRADE.load(Ordering::Relaxed);
     let url = format!(
-        "{}?v={}&p={}&new={}&m={}&pl={}&t={}&s={}&mc={}&g={}",
+        "{}?v={}&p={}&new={}&m={}&pl={}&t={}&s={}&mc={}&g={}&f={}&gr={}",
         UPDATE_CHECK_URL,
         current_version,
         platform_id(),
@@ -171,6 +173,8 @@ fn check_and_notify(current_version: &str) {
         scans,         // scans since last ping
         mcp,           // MCP calls since last ping
         gates,         // gate runs since last ping
+        files,         // last scanned file count
+        grade,         // last health grade (1=A..6=F, 0=none)
     );
 
     let output = std::process::Command::new("curl")

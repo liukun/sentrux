@@ -290,7 +290,7 @@ mod tests {
                 cls: None,
                 imp: None,
                 co: None,
-                tags: None,
+                tags: None, comment_lines: None,
             }),
             children: None,
         };

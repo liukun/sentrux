@@ -73,6 +73,7 @@ fn handle_full_scan(
             }
         }),
         limits,
+        Some(cancel),
     );
 
     // If cancelled, don't send result — it's stale

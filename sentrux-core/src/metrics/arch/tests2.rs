@@ -128,7 +128,7 @@ fn make_file_with_classes(path: &str, classes: Vec<ClassInfo>) -> FileNode {
             cls: Some(classes),
             imp: None,
             co: None,
-            tags: None,
+            tags: None, comment_lines: None,
         }),
         children: None,
     }
@@ -297,7 +297,7 @@ fn blast_grade_real_repo() {
         max_call_targets: 64,
     };
     let result = crate::analysis::scanner::scan_directory(
-        path.to_str().unwrap(), None, None, &limits);
+        path.to_str().unwrap(), None, None, &limits, None);
     let snap = result.unwrap().snapshot;
     let arch = compute_arch(&snap);
     // Blast grade should be A, B, or C — no catastrophic blast concentration.

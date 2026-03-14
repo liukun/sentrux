@@ -29,7 +29,7 @@ mod tests {
                         "orderflow_ml/core/feature_store".to_string(),
                         "os".to_string(),
                     ]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("config.py", "orderflow_ml/config.py", "python", None),
@@ -61,7 +61,7 @@ mod tests {
                         "orderflow_ml/core/feature_store".to_string(),
                         "orderflow_ml/utils/symbol_utils".to_string(),
                     ]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("__init__.py", "python_ml/orderflow_ml/config/__init__.py", "python", None),
@@ -87,7 +87,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec![".utils".to_string(), "..config".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("utils.py", "pkg/utils.py", "python", None),
@@ -115,7 +115,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["mypackage".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("__init__.py", "mypackage/__init__.py", "python", None),
@@ -139,7 +139,7 @@ mod tests {
             Some(StructuralAnalysis {
                 functions: None, cls: None,
                 imp: Some(vec!["orderflow_ml/config".to_string()]),
-                co: None, tags: None,
+                co: None, tags: None, comment_lines: None,
             }),
         )];
 
@@ -161,14 +161,14 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["orderflow_ml/config".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("02_compute_dup.py", "arch/python_ml1/pipeline/02_compute.py", "python",
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["orderflow_ml/config".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("config1.py", "python_ml/orderflow_ml/config.py", "python", None),
@@ -203,7 +203,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["app.js".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("app.js", "app.js", "javascript", None),
@@ -236,7 +236,7 @@ mod tests {
                 Some(StructuralAnalysis {
                     functions: None, cls: None,
                     imp: Some(vec!["crate/graph".to_string()]),
-                    co: None, tags: None,
+                    co: None, tags: None, comment_lines: None,
                 }),
             ),
             make_file("graph.rs", "project_a/src/graph.rs", "rust", None),
@@ -264,7 +264,7 @@ mod tests {
         let files = vec![
             make_file("db.rs", "src/store/db.rs", "rust",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec![
                         "crate/models/episode".to_string(),
                         "crate/models/primitive".to_string(),
@@ -274,13 +274,13 @@ mod tests {
             ),
             make_file("mod.rs", "src/models/mod.rs", "rust",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec!["episode".to_string(), "primitive".to_string()]),
                 }),
             ),
             make_file("mod.rs", "src/store/mod.rs", "rust",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec!["db".to_string(), "schema".to_string(), "vectors".to_string()]),
                 }),
             ),
@@ -333,7 +333,7 @@ mod tests {
         let files = vec![
             make_file("main.rs", "src/main.rs", "rust",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec!["beemem/commands".to_string()]),
                 }),
             ),
@@ -363,7 +363,7 @@ mod tests {
         let files = vec![
             make_file("main.rs", "src/main.rs", "rust",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec!["sentrux_tauri".to_string()]),
                 }),
             ),
@@ -393,7 +393,7 @@ mod tests {
         let files = vec![
             make_file("index.html", "index.html", "html",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec!["src/style.css".to_string()]),
                 })),
             make_file("style.css", "src/style.css", "css", None),
@@ -415,7 +415,7 @@ mod tests {
         let files = vec![
             make_file("main.py", "main.py", "python",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec!["mylib/utils/helpers".to_string()]),
                 })),
             make_file("helpers.py", "mylib/utils/helpers.py", "python", None),
@@ -439,7 +439,7 @@ mod tests {
         let files = vec![
             make_file("main.go", "cmd/server/main.go", "go",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec![
                         "github.com/slush-dev/phonevault/internal/config".to_string(),
                         "github.com/slush-dev/phonevault/internal/handler".to_string(),
@@ -485,7 +485,7 @@ mod tests {
         let files = vec![
             make_file("main.go", "server/cmd/server/main.go", "go",
                 Some(StructuralAnalysis {
-                    functions: None, cls: None, co: None, tags: None,
+                    functions: None, cls: None, co: None, tags: None, comment_lines: None,
                     imp: Some(vec![
                         "github.com/example/myapp/internal/config".to_string(),
                         "github.com/example/myapp/internal/handler".to_string(),

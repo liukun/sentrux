@@ -97,6 +97,78 @@ pub fn clear_cache() {
     }
 }
 
+/// Count lines covered by comment nodes in the tree-sitter AST.
+/// Uses a bool-per-line array to handle overlapping/multi-line comments.
+/// Recognizes "comment", "line_comment", "block_comment" node kinds
+/// (covers all tree-sitter grammars).
+pub(crate) fn count_comment_lines(tree: &tree_sitter::Tree) -> u32 {
+    let root = tree.root_node();
+    let total_lines = root.end_position().row + 1;
+    if total_lines == 0 {
+        return 0;
+    }
+    let mut is_comment = vec![false; total_lines];
+
+    fn walk(node: tree_sitter::Node, is_comment: &mut [bool]) {
+        let kind = node.kind();
+        if kind == "comment" || kind == "line_comment" || kind == "block_comment" {
+            let start = node.start_position().row;
+            let end = node.end_position().row;
+            for line in start..=end.min(is_comment.len() - 1) {
+                is_comment[line] = true;
+            }
+            return;
+        }
+        for i in 0..node.child_count() {
+            if let Some(child) = node.child(i) {
+                walk(child, is_comment);
+            }
+        }
+    }
+
+    walk(root, &mut is_comment);
+    is_comment.iter().filter(|&&b| b).count() as u32
+}
+
+/// Parse pre-read content and return StructuralAnalysis with comment_lines populated.
+/// Used by the scanner to avoid double-reading files (read once, parse + count lines).
+pub(crate) fn parse_file_from_content(content: &[u8], lang: &str) -> Option<StructuralAnalysis> {
+    let hash = content_hash_str(content, lang);
+
+    // Check cache
+    {
+        let cache = match CACHE.lock() {
+            Ok(c) => c,
+            Err(p) => p.into_inner(),
+        };
+        if let Some(cached) = cache.get(&hash) {
+            return Some(cached.clone());
+        }
+    }
+
+    let (grammar, query) = super::lang_registry::get_grammar_and_query(lang)?;
+
+    let tree = TL_PARSER.with(|parser_cell| {
+        let mut parser = parser_cell.borrow_mut();
+        parser.set_language(grammar).ok()?;
+        parser.parse(content, None)
+    })?;
+
+    let mut sa = extract_with_queries(&tree, content, query, lang);
+    sa.comment_lines = Some(count_comment_lines(&tree));
+
+    // Cache
+    {
+        let mut cache = match CACHE.lock() {
+            Ok(c) => c,
+            Err(p) => p.into_inner(),
+        };
+        cache.insert(hash, sa.clone());
+    }
+
+    Some(sa)
+}
+
 fn content_hash(content: &[u8], lang: &str) -> u64 {
     // Use fast non-cryptographic hash (SipHash via std's DefaultHasher).
     // We only need dedup within a session, not collision resistance.
@@ -197,6 +269,7 @@ impl ExtractionState {
             imp: if self.imports.is_empty() { None } else { Some(self.imports) },
             co: if module_calls.is_empty() { None } else { Some(module_calls) },
             tags: if self.tags.is_empty() { None } else { Some(self.tags) },
+            comment_lines: None, // Filled later by parse_file_from_content
         }
     }
 }

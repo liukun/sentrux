@@ -4,7 +4,7 @@
 //! tree/graph rebuilding for changed files only.
 
 use super::common::{
-    ScanLimits, ScanResult, count_lines_batch, detect_lang,
+    ScanLimits, ScanResult, count_lines_from_bytes, detect_lang,
     should_ignore_dir, should_ignore_file, MAX_FILES,
 };
 use super::tree::build_tree;
@@ -57,13 +57,12 @@ pub fn rescan_changed(
         deleted_dir_prefixes.iter().all(|prefix| !f.path.starts_with(prefix.as_str()))
     });
 
-    // Batch line counts + structural analysis + git statuses
-    let line_counts = batch_line_counts(&to_reparse);
+    // Structural analysis + git statuses (line counts computed inline per file)
     let sa_map = batch_parse_files(&to_reparse, max_parse_size);
     let git_statuses = crate::analysis::git::get_statuses(root_path);
 
     // Update or insert changed files into the file list
-    upsert_changed_files(&mut files, &to_reparse, &line_counts, &sa_map, &git_statuses);
+    upsert_changed_files(&mut files, &to_reparse, &sa_map, &git_statuses);
 
     // Enforce MAX_FILES limit (same as initial scan) [ref:93cf32d4]
     enforce_max_files(&mut files);
@@ -182,16 +181,6 @@ fn classify_changed_paths(
     (to_reparse, deleted)
 }
 
-/// Batch tokei line counting for all reparse targets.
-fn batch_line_counts(to_reparse: &[(String, PathBuf)]) -> HashMap<PathBuf, (u32, u32, u32, u32)> {
-    let abs_paths: Vec<PathBuf> = to_reparse.iter().map(|(_, abs)| abs.clone()).collect();
-    if abs_paths.is_empty() {
-        HashMap::new()
-    } else {
-        count_lines_batch(&abs_paths)
-    }
-}
-
 /// Batch structural analysis parsing in parallel for all reparse targets.
 fn batch_parse_files(
     to_reparse: &[(String, PathBuf)],
@@ -209,33 +198,11 @@ fn batch_parse_files(
         .collect()
 }
 
-/// Look up line counts for a file, with canonicalized-path fallback and read fallback.
-fn lookup_line_counts(
-    abs: &Path,
-    line_counts: &HashMap<PathBuf, (u32, u32, u32, u32)>,
-) -> (u32, u32, u32, u32) {
-    line_counts
-        .get(abs)
-        .or_else(|| match abs.canonicalize() {
-            Ok(cp) => line_counts.get(&cp),
-            Err(_) => None,
-        })
-        .copied()
-        .unwrap_or_else(|| {
-            if let Ok(content) = fs::read_to_string(abs) {
-                let total = content.lines().count() as u32;
-                (total, 0, 0, 0)
-            } else {
-                (0, 0, 0, 0)
-            }
-        })
-}
-
-/// Build a FileNode from a changed file's metadata, line counts, and structural analysis.
+/// Build a FileNode from a changed file — reads file once for line counts,
+/// gets comment count from pre-parsed SA. No tokei dependency.
 fn build_file_node(
     rel: &str,
     abs: &Path,
-    line_counts: &HashMap<PathBuf, (u32, u32, u32, u32)>,
     sa_map: &HashMap<String, crate::core::types::StructuralAnalysis>,
     git_statuses: &HashMap<String, String>,
 ) -> FileNode {
@@ -243,15 +210,24 @@ fn build_file_node(
         Ok(t) => t.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64(),
         Err(_) => 0.0,
     };
-    let (lines, logic, comments, blanks) = lookup_line_counts(abs, line_counts);
     let lang = detect_lang(abs);
     let sa = sa_map.get(rel).cloned();
+
+    // Read file once for line counting
+    let content = fs::read(abs).unwrap_or_default();
+    let lc = count_lines_from_bytes(&content);
+    let comment_count = sa.as_ref().and_then(|s| s.comment_lines).unwrap_or(0);
+    let total = lc.total;
+    let blanks = lc.blanks;
+    let comments = comment_count;
+    let logic = total.saturating_sub(comments).saturating_sub(blanks);
+
     let funcs = sa.as_ref().and_then(|s| s.functions.as_ref()).map_or(0, |v| v.len() as u32);
     let gs = git_statuses.get(rel).cloned().unwrap_or_default();
     let name = abs.file_name().unwrap_or_default().to_string_lossy().to_string();
     FileNode {
         path: rel.to_string(), name, is_dir: false,
-        lines, logic, comments, blanks, funcs, mtime, gs, lang, sa,
+        lines: total, logic, comments, blanks, funcs, mtime, gs, lang, sa,
         children: None,
     }
 }
@@ -260,14 +236,13 @@ fn build_file_node(
 fn upsert_changed_files(
     files: &mut Vec<FileNode>,
     to_reparse: &[(String, PathBuf)],
-    line_counts: &HashMap<PathBuf, (u32, u32, u32, u32)>,
     sa_map: &HashMap<String, crate::core::types::StructuralAnalysis>,
     git_statuses: &HashMap<String, String>,
 ) {
     let mut file_map: HashMap<String, usize> = files.iter().enumerate()
         .map(|(i, f)| (f.path.clone(), i)).collect();
     for (rel, abs) in to_reparse {
-        let node = build_file_node(rel, abs, line_counts, sa_map, git_statuses);
+        let node = build_file_node(rel, abs, sa_map, git_statuses);
         if let Some(&idx) = file_map.get(rel) {
             files[idx] = node;
         } else {

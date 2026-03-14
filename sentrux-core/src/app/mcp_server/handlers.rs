@@ -31,6 +31,7 @@ pub(crate) fn do_scan(root: &Path) -> Result<(Snapshot, metrics::HealthReport, a
             max_parse_size_kb: s.max_parse_size_kb,
             max_call_targets: s.max_call_targets,
         },
+        None, // MCP scans are not cancellable
     ).map_err(|e| format!("Scan failed: {e}"))?;
     let health = metrics::compute_health(&result.snapshot);
     let arch_report = arch::compute_arch(&result.snapshot);

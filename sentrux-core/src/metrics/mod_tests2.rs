@@ -302,7 +302,7 @@ mod tests {
                     FuncInfo { n: "short".into(), sl: 1, el: 10, ln: 10, cc: Some(2), cog: None, pc: None, bh: None, d: None, co: None },
                     FuncInfo { n: "long".into(), sl: 11, el: 100, ln: 90, cc: Some(3), cog: None, pc: None, bh: None, d: None, co: None },
                 ]),
-                cls: None, imp: None, co: None, tags: None,
+                cls: None, imp: None, co: None, tags: None, comment_lines: None,
             }),
             children: None,
         };

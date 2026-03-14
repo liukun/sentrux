@@ -183,6 +183,7 @@ fn run_check(path: &str) -> i32 {
     let result = match analysis::scanner::scan_directory(
         path, None, None,
         &cli_scan_limits(),
+        None,
     ) {
         Ok(r) => r,
         Err(e) => {
@@ -245,6 +246,7 @@ fn run_gate(path: &str, save_mode: bool) -> i32 {
     let result = match analysis::scanner::scan_directory(
         path, None, None,
         &cli_scan_limits(),
+        None,
     ) {
         Ok(r) => r,
         Err(e) => {
