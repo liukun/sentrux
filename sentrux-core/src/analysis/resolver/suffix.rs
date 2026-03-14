@@ -10,6 +10,11 @@ use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+/// Manifest-derived path aliases collected during suffix index build.
+/// Used to support subpath imports: @company/shared/utils → packages/shared/src/utils
+static PATH_ALIAS_FROM_MANIFESTS: std::sync::Mutex<Vec<(String, String)>> =
+    std::sync::Mutex::new(Vec::new());
+
 use super::helpers::{
     resolve_relative, try_resolve_name,
     try_suffix_resolve, file_to_module_path, SuffixIndex, ResolveEnv,
@@ -96,10 +101,27 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
     let project_map = build_project_map(files, scan_root);
     let t_project_map = t0.elapsed();
 
+    // Reset manifest path aliases from previous scan
+    PATH_ALIAS_FROM_MANIFESTS.lock().unwrap_or_else(|p| p.into_inner()).clear();
+
     let suffix_index = build_module_suffix_index(&known_files, scan_root, &project_map);
 
     // Load path aliases from plugin-declared config files (tsconfig.json, etc.)
-    let path_aliases = load_path_aliases(&project_map, scan_root);
+    let mut path_aliases = load_path_aliases(&project_map, scan_root);
+
+    // Merge manifest-derived package aliases (collected during suffix index build)
+    let manifest_aliases = PATH_ALIAS_FROM_MANIFESTS.lock()
+        .unwrap_or_else(|p| p.into_inner()).clone();
+    if !manifest_aliases.is_empty() {
+        let root_aliases = path_aliases.entry(String::new()).or_default();
+        for (prefix, replacement) in manifest_aliases {
+            root_aliases.push(PathAlias { prefix, replacements: vec![replacement] });
+        }
+        // Sort longest prefix first
+        if let Some(aliases) = path_aliases.get_mut("") {
+            aliases.sort_by(|a, b| b.prefix.len().cmp(&a.prefix.len()));
+        }
+    }
     let t_suffix = t0.elapsed();
 
     let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts, &path_aliases);
@@ -428,7 +450,18 @@ fn inject_manifest_aliases<'a>(
                         "hyphen_to_underscore" => name.replace('-', "_"),
                         _ => name,
                     };
-                    index.entry(transformed).or_default().push(file_path);
+                    // Suffix alias: exact name → entry point file
+                    index.entry(transformed.clone()).or_default().push(file_path);
+
+                    // Also add to path_aliases for subpath imports:
+                    // @company/shared/utils → packages/shared/src/utils
+                    let src_dir = file_path
+                        .strip_suffix(entry_filename)
+                        .unwrap_or(file_path);
+                    if !src_dir.is_empty() {
+                        PATH_ALIAS_FROM_MANIFESTS.lock().unwrap_or_else(|p| p.into_inner())
+                            .push((format!("{}/", transformed), src_dir.to_string()));
+                    }
                 }
             }
         }
