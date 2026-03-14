@@ -106,6 +106,19 @@ impl eframe::App for SentruxApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Global keyboard shortcuts
+        ctx.input(|i| {
+            // Cmd+R: rescan
+            if i.modifiers.command && i.key_pressed(egui::Key::R) {
+                self.state.rescan_requested = true;
+            }
+            // Escape: clear selection and search
+            if i.key_pressed(egui::Key::Escape) {
+                self.state.selected_path = None;
+                self.state.search_query.clear();
+            }
+        });
+
         self.poll_channels(ctx);
         self.maybe_start_scan();
         let panels = draw_panels::draw_all_panels(self, ctx);
@@ -278,6 +291,7 @@ impl SentruxApp {
             anim_time: self.state.anim_time,
             interacting: self.state.interacting,
             root_path: self.state.root_path.as_deref(),
+            search_query: &self.state.search_query,
         };
         renderer::render_frame(&painter, canvas_rect, &render_ctx);
 

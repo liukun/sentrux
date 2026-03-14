@@ -261,14 +261,34 @@ fn file_display_color(
     if !lod_full {
         return base_color;
     }
+
+    // Search highlighting: when search is active, highlight matches, dim others
+    if !ctx.search_query.is_empty() {
+        let filename = path.rsplit('/').next().unwrap_or(path);
+        let query_lower = ctx.search_query.to_lowercase();
+        let matches = filename.to_lowercase().contains(&query_lower)
+            || path.to_lowercase().contains(&query_lower);
+        if matches {
+            // Brighten matching files
+            let [r, g, b, _] = base_color.to_array();
+            return Color32::from_rgb(
+                (r as f32 + (255.0 - r as f32) * 0.35) as u8,
+                (g as f32 + (255.0 - g as f32) * 0.35) as u8,
+                (b as f32 + (255.0 - b as f32) * 0.35) as u8,
+            );
+        } else {
+            // Heavily dim non-matching files
+            let [r, g, b, _] = base_color.to_array();
+            return Color32::from_rgb(r / 4, g / 4, b / 4);
+        }
+    }
+
     let has_spotlight = connected_files.is_some();
     let is_spotlit = connected_files.as_ref().is_some_and(|c| c.contains(path));
     if is_spotlit {
         if ctx.color_mode == ColorMode::Monochrome {
             ctx.theme_config.file_surface_spotlit
         } else {
-            // Blend toward white by a fraction to brighten without hue shift.
-            // factor ~0.25 gives a visible but subtle lift.
             let [r, g, b, _] = base_color.to_array();
             let factor = 0.25_f32;
             Color32::from_rgb(
@@ -278,7 +298,6 @@ fn file_display_color(
             )
         }
     } else if has_spotlight {
-        // Dim unconnected files: halve RGB, keep fully opaque (no alpha double-dim)
         let [r, g, b, _] = base_color.to_array();
         Color32::from_rgb(r / 2, g / 2, b / 2)
     } else {

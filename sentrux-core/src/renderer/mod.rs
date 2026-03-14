@@ -72,6 +72,8 @@ pub struct RenderContext<'a> {
     pub interacting: bool,
     /// Absolute path of the scan root (for status bar display)
     pub root_path: Option<&'a str>,
+    /// Search query — matching files are highlighted, non-matching dimmed
+    pub search_query: &'a str,
 }
 
 /// Orchestrate a single frame of rendering onto the canvas painter.
