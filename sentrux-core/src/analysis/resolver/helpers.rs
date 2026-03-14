@@ -24,9 +24,9 @@ pub(crate) struct SuffixIndex<'a> {
     /// Manifest-derived name aliases: package/crate name → entry point file.
     /// Separate from general index to allow safe single-segment lookup.
     pub(super) manifest_name_aliases: HashMap<String, Vec<&'a str>>,
-    /// Go module prefix map: module path (from go.mod) -> project dir relative to scan root.
-    /// e.g. "github.com/user/repo" -> "server" when server/go.mod declares that module.
-    pub(super) go_module_prefixes: Vec<(String, String)>,
+    /// Module prefix map: module path (from prefix files like go.mod) -> project dir.
+    /// e.g. "github.com/user/repo" -> "server" when server's prefix file declares that module.
+    pub(super) module_prefixes: Vec<(String, String)>,
 }
 
 /// Convert a file path to its module path.
@@ -49,12 +49,12 @@ pub(super) struct ResolveEnv<'a> {
     pub exts: &'a [&'a str],
 }
 
-/// Strip a known Go module prefix from an import specifier.
+/// Strip a known module prefix from an import specifier.
 /// e.g. "github.com/user/repo/internal/config" with module "github.com/user/repo"
 /// returns Some("internal/config"). If the specifier also has a project dir prefix
 /// (e.g. module is in "server/"), prepends it: "server/internal/config".
-fn strip_go_module_prefix<'a>(specifier: &'a str, go_module_prefixes: &[(String, String)]) -> Option<String> {
-    for (module_path, project_dir) in go_module_prefixes {
+fn strip_module_prefix<'a>(specifier: &'a str, module_prefixes: &[(String, String)]) -> Option<String> {
+    for (module_path, project_dir) in module_prefixes {
         if let Some(rest) = specifier.strip_prefix(module_path.as_str()) {
             let rest = rest.strip_prefix('/').unwrap_or(rest);
             if rest.is_empty() {
@@ -76,10 +76,10 @@ pub(super) fn try_suffix_resolve(
     file_dir_str: &str,
     file_dir: &Path,
 ) -> Option<String> {
-    // Fast path: Go module-qualified imports — strip the module prefix first
+    // Fast path: module-qualified imports — strip the module prefix first
     // so we jump straight to the local path instead of progressive stripping.
-    if !env.suffix_index.go_module_prefixes.is_empty() {
-        if let Some(local_path) = strip_go_module_prefix(specifier, &env.suffix_index.go_module_prefixes) {
+    if !env.suffix_index.module_prefixes.is_empty() {
+        if let Some(local_path) = strip_module_prefix(specifier, &env.suffix_index.module_prefixes) {
             // Try the module-stripped path through the suffix index
             if let Some(result) = try_suffix_resolve_inner(&local_path, env, file_dir_str, file_dir) {
                 return Some(result);

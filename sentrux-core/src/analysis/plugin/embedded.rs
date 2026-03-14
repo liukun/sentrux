@@ -12,6 +12,7 @@ name = "bash"
 display_name = "Bash"
 version = "0.1.0"
 extensions = ["sh", "bash"]
+filenames = ["Makefile", "GNUmakefile", "Makefile.*", "Justfile"]
 min_sentrux_version = "0.3.0"
 color_rgb = [110, 160, 80]
 
@@ -391,7 +392,7 @@ r#"; Crystal tags.scm (Ruby-like syntax)
   (string) @import.module) @import
 "#),
     ("csharp",
-r#"[plugin]
+r##"[plugin]
 name = "csharp"
 display_name = "C#"
 version = "0.1.0"
@@ -449,7 +450,7 @@ nesting_nodes = ["if_statement", "for_statement", "foreach_statement", "while_st
 [semantics.complexity_keywords]
 cc = [" if ", "\tif ", "if(", "else if", "for ", "for(", "while ", "while(", "switch ", "case ", "catch ", "&&", "||"]
 cog_branch = ["if ", "if(", "else if", "for ", "for(", "while ", "while(", "switch ", "case ", "catch "]
-"#,
+"##,
 r#"; Official tree-sitter-c-sharp tags.scm (v0.23.1)
 
 (class_declaration name: (identifier) @name) @definition.class
@@ -605,6 +606,7 @@ name = "dockerfile"
 display_name = "Dockerfile"
 version = "0.2.0"
 extensions = ["dockerfile"]
+filenames = ["Dockerfile", "Dockerfile.*"]
 min_sentrux_version = "0.4.0"
 color_rgb = [60, 80, 90]
 
@@ -662,6 +664,10 @@ module_path_field = ""
 module_path_node_kinds = ["alias"]
 module_name_transform = "pascal_to_snake"
 recursive_search = true
+multi_alias_container = "dot"
+multi_alias_prefix_field = "left"
+multi_alias_list_field = "right"
+multi_alias_list_kinds = ["tuple", "list"]
 
 [semantics.complexity]
 branch_nodes = []
@@ -773,7 +779,7 @@ r#"; Erlang tags.scm
   (#match? @attr_name "^(import|include|include_lib)$")) @import
 "#),
     ("fsharp",
-r#"[plugin]
+r##"[plugin]
 name = "fsharp"
 display_name = "F#"
 version = "0.2.0"
@@ -813,7 +819,7 @@ branch_nodes = ["if_expression", "match_expression", "for_expression", "while_ex
 logic_nodes = ["infix_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
-"#,
+"##,
 r#"; F# tags.scm
 
 (function_or_value_defn
@@ -2272,6 +2278,7 @@ test_prefixes = ["test_"]
 test_dir_prefixes = ["tests/", "test/"]
 test_dir_infixes = ["/tests/", "/test/"]
 main_filenames = ["app.py", "server.py"]
+entry_point_patterns = ["__main__"]
 
 
 [semantics.resolver]
@@ -2418,6 +2425,7 @@ name = "ruby"
 display_name = "Ruby"
 version = "0.1.0"
 extensions = ["rb"]
+filenames = ["Rakefile", "Gemfile", "Guardfile", "Vagrantfile"]
 min_sentrux_version = "0.3.0"
 color_rgb = [160, 65, 60]
 
@@ -2540,7 +2548,7 @@ r#"; Official tree-sitter-ruby tags.scm (v0.23.1)
   (#match? @_method "^(require|require_relative)$")) @import
 "#),
     ("rust",
-r#"[plugin]
+r##"[plugin]
 name = "rust"
 display_name = "Rust"
 version = "0.2.0"
@@ -2570,6 +2578,13 @@ is_executable = true
 test_suffixes = ["_test.rs", "_tests.rs"]
 test_dir_prefixes = ["tests/"]
 test_dir_infixes = ["/tests/"]
+test_module_kind = "mod_item"
+test_attribute_kind = "attribute_item"
+test_attribute_patterns = ["cfg", "test"]
+entry_point_patterns = ["@main", "tokio::main", "actix_web::main", "#[main]"]
+test_function_prefixes = ["test_", "bench_"]
+implicit_entry_points = ["from", "into", "try_from", "try_into", "drop", "fmt", "clone", "eq", "hash", "cmp", "partial_cmp", "as_ref", "deref", "index"]
+qualified_name_separator = "::"
 
 [semantics.project]
 manifest_files = ["Cargo.toml"]
@@ -2594,6 +2609,9 @@ strategy = "scoped_path"
 path_separator = "::"
 use_list_kind = "use_list"
 scoped_path_kinds = ["scoped_identifier", "scoped_use_list"]
+mod_declaration_kind = "mod_item"
+leaf_identifier_kinds = ["identifier", "crate", "self"]
+skip_type_imports_in_use_list = true
 
 [semantics.complexity]
 branch_nodes = ["if_expression", "else_clause", "for_expression", "while_expression", "loop_expression", "match_arm"]
@@ -2605,7 +2623,7 @@ nesting_nodes = ["if_expression", "for_expression", "while_expression", "loop_ex
 cc = [" if ", "\tif ", "else if", "for ", "while ", "loop ", "&&", "||", "=> ", "=>{"]
 cog_branch = ["if ", "else if", "for ", "while ", "loop ", "match "]
 cog_nesting = ["if ", "for ", "while ", "loop ", "match "]
-"#,
+"##,
 r#"; Official tree-sitter-rust tags.scm (v0.23.3)
 
 ; ADT definitions
@@ -2958,6 +2976,7 @@ is_executable = true
 test_suffixes = ["Tests.swift", "Test.swift"]
 test_dir_prefixes = ["Tests/"]
 test_dir_infixes = ["/Tests/"]
+entry_point_patterns = ["@main", "@Main", "@UIApplicationMain"]
 
 
 [semantics.resolver]

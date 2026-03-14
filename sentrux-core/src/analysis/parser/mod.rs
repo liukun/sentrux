@@ -292,7 +292,7 @@ pub(crate) fn extract_with_queries(
             continue;
         }
         let r = classify_captures(
-            m.captures, capture_names, content,
+            m.captures, capture_names, content, lang,
             &mut state.imports, &mut state.import_set, &mut state.tags, &mut state.tag_set,
         );
         state.dispatch_match(r, m.captures[0].node, &pctx);

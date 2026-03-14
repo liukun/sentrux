@@ -31,6 +31,9 @@ pub struct PluginInfo {
     pub version: String,
     /// File extensions this plugin handles (without dots)
     pub extensions: Vec<String>,
+    /// Extensionless filenames this plugin handles (e.g., "Dockerfile", "Makefile").
+    #[serde(default)]
+    pub filenames: Vec<String>,
     /// UI color [R, G, B] for this language in the renderer.
     #[serde(default)]
     pub color_rgb: Option<[u8; 3]>,

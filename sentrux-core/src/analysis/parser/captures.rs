@@ -62,6 +62,7 @@ fn process_single_capture<'a>(
     cname: &str,
     cap: &tree_sitter::QueryCapture<'a>,
     content: &[u8],
+    lang: &str,
     r: &mut CaptureResult<'a>,
     imports: &mut Vec<String>,
     import_set: &mut HashSet<String>,
@@ -94,7 +95,7 @@ fn process_single_capture<'a>(
             r.name_text = cap.node.utf8_text(content).ok().map(|s| s.to_string());
         }
         "import" => {
-            if !is_cfg_test_mod(cap.node, content) {
+            if !is_test_mod(cap.node, content, lang) {
                 r.match_type = Some(MatchKind::Import);
                 r.import_node = Some(cap.node);
             }
@@ -108,7 +109,7 @@ fn process_single_capture<'a>(
             process_scoped_path(cap.node, content, imports, import_set);
         }
         "entry" | "entry.point" => {
-            classify_entry_tag(cap.node, content, tags, tag_set);
+            classify_entry_tag(cap.node, content, lang, tags, tag_set);
         }
         // Ignored capture names
         "definition.module" | "definition.macro" | "definition.constant"
@@ -123,6 +124,7 @@ pub(super) fn classify_captures<'a>(
     captures: &'a [tree_sitter::QueryCapture<'a>],
     capture_names: &[&str],
     content: &[u8],
+    lang: &str,
     imports: &mut Vec<String>,
     import_set: &mut HashSet<String>,
     tags: &mut Vec<String>,
@@ -140,36 +142,41 @@ pub(super) fn classify_captures<'a>(
 
     for cap in captures {
         let cname = capture_names[cap.index as usize];
-        process_single_capture(cname, cap, content, &mut r, imports, import_set, tags, tag_set);
+        process_single_capture(cname, cap, content, lang, &mut r, imports, import_set, tags, tag_set);
     }
     r
 }
 
-/// Check if an attribute_item node contains cfg(test).
-fn is_cfg_test_attribute(sib: tree_sitter::Node, content: &[u8]) -> bool {
+/// Check if an attribute node matches all test attribute patterns.
+/// Generic: patterns come from plugin TOML `test_attribute_patterns`.
+fn is_test_attribute(sib: tree_sitter::Node, content: &[u8], patterns: &[String]) -> bool {
+    if patterns.is_empty() { return false; }
     if let Ok(text) = sib.utf8_text(content) {
-        text.contains("cfg") && text.contains("test")
+        patterns.iter().all(|p| text.contains(p.as_str()))
     } else {
         false
     }
 }
 
-/// Check if a tree-sitter node is a `mod` declaration preceded by `#[cfg(test)]`.
-/// In the Rust AST, `#[cfg(test)] mod tests;` produces:
-///   attribute_item  <- sibling
-///   mod_item        <- our node
+/// Check if a tree-sitter node is a test module declaration preceded by a test attribute.
+/// Configured via test_module_kind and test_attribute_kind in plugin TOML.
 /// Test modules are not production dependencies -- including them creates
-/// false mutual edges (mod->test, test->mod) that inflate upward violations.
-fn is_cfg_test_mod(node: tree_sitter::Node, content: &[u8]) -> bool {
-    if node.kind() != "mod_item" {
+/// false mutual edges that inflate upward violations.
+fn is_test_mod(node: tree_sitter::Node, content: &[u8], lang: &str) -> bool {
+    let profile = crate::analysis::lang_registry::profile(lang);
+    let sem = &profile.semantics;
+    if sem.test_module_kind.is_empty() || sem.test_attribute_kind.is_empty() {
+        return false;
+    }
+    if node.kind() != sem.test_module_kind {
         return false;
     }
     let mut sibling = node.prev_sibling();
     while let Some(sib) = sibling {
-        if sib.kind() != "attribute_item" {
+        if sib.kind() != sem.test_attribute_kind {
             break;
         }
-        if is_cfg_test_attribute(sib, content) {
+        if is_test_attribute(sib, content, &sem.test_attribute_patterns) {
             return true;
         }
         sibling = sib.prev_sibling();
@@ -178,18 +185,22 @@ fn is_cfg_test_mod(node: tree_sitter::Node, content: &[u8]) -> bool {
 }
 
 /// Map an entry-point tag line to its canonical label.
-fn entry_tag_label(tag: &str) -> Option<&'static str> {
-    if tag.contains("@main") || tag.contains("@Main") || tag.contains("@UIApplicationMain") {
-        return Some("@main");
+/// Checks against entry_point_patterns from the language's plugin TOML.
+/// Falls back to a universal "@main" label if any configured pattern matches.
+fn entry_tag_label(tag: &str, lang: &str) -> Option<String> {
+    let profile = crate::analysis::lang_registry::profile(lang);
+    let patterns = &profile.semantics.entry_point_patterns;
+    if patterns.is_empty() {
+        return None;
     }
-    if tag.contains("__main__") {
-        return Some("__main__");
-    }
-    if tag.contains("tokio::main") || tag.contains("actix_web::main") {
-        return Some("@async_main");
-    }
-    if tag.contains("#[main]") {
-        return Some("@main");
+    for pattern in patterns {
+        if tag.contains(pattern.as_str()) {
+            // Use pattern as label, or "@main" for common patterns
+            if pattern.contains("main") {
+                return Some("@main".to_string());
+            }
+            return Some(pattern.clone());
+        }
     }
     None
 }
@@ -197,6 +208,7 @@ fn entry_tag_label(tag: &str) -> Option<&'static str> {
 fn classify_entry_tag(
     node: tree_sitter::Node,
     content: &[u8],
+    lang: &str,
     tags: &mut Vec<String>,
     tag_set: &mut HashSet<String>,
 ) {
@@ -205,9 +217,9 @@ fn classify_entry_tag(
         Err(_) => return,
     };
     let tag = text.lines().next().unwrap_or(text).trim();
-    if let Some(label) = entry_tag_label(tag) {
-        if tag_set.insert(label.to_string()) {
-            tags.push(label.to_string());
+    if let Some(label) = entry_tag_label(tag, lang) {
+        if tag_set.insert(label.clone()) {
+            tags.push(label);
         }
     }
 }
@@ -244,7 +256,7 @@ pub(super) fn process_func_def(
             // Languages must declare branch_nodes in plugin.toml to get complexity analysis.
             (1u32, 0u32)
         };
-        let pc = count_parameters(node, pctx.content);
+        let pc = count_parameters(node, pctx.content, pctx.lang);
         let bh = hash_body(body, pctx.lang);
         functions.push(FuncInfo {
             n: name, sl, el, ln,

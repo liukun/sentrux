@@ -95,14 +95,15 @@ fn collect_matching_descendants(
 ) {
     for i in 0..node.named_child_count() {
         if let Some(child) = node.named_child(i) {
-            // Check for dot node with prefix.{items} pattern (Elixir multi-alias)
-            if child.kind() == "dot" {
+            // Check for multi-alias container (configured via TOML, e.g., Elixir "dot")
+            if !config.multi_alias_container.is_empty()
+                && child.kind() == config.multi_alias_container
+            {
                 if let (Some(left), Some(right)) = (
-                    child.child_by_field_name("left"),
-                    child.child_by_field_name("right"),
+                    child.child_by_field_name(&config.multi_alias_prefix_field),
+                    child.child_by_field_name(&config.multi_alias_list_field),
                 ) {
-                    // tuple/list on the right = multi-alias expansion
-                    if right.kind() == "tuple" || right.kind() == "list" {
+                    if config.multi_alias_list_kinds.iter().any(|k| k == right.kind()) {
                         if let Some(prefix) = read_path_from_node(left, content, config) {
                             // Collect each alias inside the tuple/list
                             for j in 0..right.named_child_count() {
@@ -270,8 +271,9 @@ fn extract_scoped_path(
     content: &[u8],
     config: &ImportAstConfig,
 ) -> Vec<String> {
-    // Special case: Rust `mod foo;` — just read the name field
-    if import_node.kind() == "mod_item" {
+    // Module declaration (e.g., Rust `mod foo;`) — just read the name field.
+    // Configured via mod_declaration_kind in plugin TOML.
+    if !config.mod_declaration_kind.is_empty() && import_node.kind() == config.mod_declaration_kind {
         if let Some(name) = import_node.child_by_field_name("name") {
             if let Ok(text) = name.utf8_text(content) {
                 let t = text.trim().to_string();
@@ -331,8 +333,9 @@ fn collect_scoped_paths(
         return results;
     }
 
-    // If this is a scoped use list (path + list), combine prefix with each list item
-    if kind == "scoped_use_list" {
+    // If this is a scoped use list (path + list), combine prefix with each list item.
+    // Matches any scoped_path_kind that has both "path" and "list" fields.
+    if config.scoped_path_kinds.iter().any(|k| k == kind) && node.child_by_field_name("list").is_some() {
         let prefix = node.child_by_field_name("path")
             .and_then(|p| read_scoped_text(p, content))
             .unwrap_or_default();
@@ -374,21 +377,27 @@ fn collect_scoped_paths(
         }
     }
 
-    // Leaf identifier — read text directly
-    // For Rust: uppercase identifiers in use-lists are types, not submodules.
-    // Return empty so the parent prefix is used instead.
-    if kind == "identifier" || kind == "crate" || kind == "self" {
+    // Leaf identifier — read text directly.
+    // Leaf kinds are configured via leaf_identifier_kinds in TOML.
+    // Fallback: "identifier" if leaf_identifier_kinds is empty.
+    let is_leaf = if config.leaf_identifier_kinds.is_empty() {
+        kind == "identifier"
+    } else {
+        config.leaf_identifier_kinds.iter().any(|k| k == kind)
+    };
+    if is_leaf {
         if let Ok(text) = node.utf8_text(content) {
             let t = text.trim();
             if !t.is_empty() {
-                // If this is an uppercase identifier inside a use_list,
-                // it's a type import — skip it (parent module is the dependency).
-                let first_char = t.chars().next().unwrap_or('a');
-                if first_char.is_uppercase() && !config.use_list_kind.is_empty() {
-                    // Check if we're inside a use_list by looking at parent
-                    if let Some(parent) = node.parent() {
-                        if parent.kind() == config.use_list_kind {
-                            return vec![]; // Type import — skip
+                // If configured, skip uppercase identifiers in use_list
+                // (they're type imports — parent module is the real dependency).
+                if config.skip_type_imports_in_use_list {
+                    let first_char = t.chars().next().unwrap_or('a');
+                    if first_char.is_uppercase() && !config.use_list_kind.is_empty() {
+                        if let Some(parent) = node.parent() {
+                            if parent.kind() == config.use_list_kind {
+                                return vec![]; // Type import — skip
+                            }
                         }
                     }
                 }

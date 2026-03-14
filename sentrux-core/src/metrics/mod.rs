@@ -349,23 +349,38 @@ fn build_call_target_set(files: &[&FileNode]) -> HashSet<String> {
     all_calls
 }
 
-/// Implicit entry points: lifecycle, trait, framework, and common patterns.
-fn implicit_entry_points() -> HashSet<&'static str> {
-    [
-        "main", "new", "default", "from", "into", "try_from", "try_into",
-        "drop", "fmt", "clone", "eq", "hash", "cmp", "partial_cmp",
-        "serialize", "deserialize", "as_ref", "deref", "index",
-        "init", "setup", "teardown", "run", "start", "stop", "build",
-        "configure", "register", "update", "draw", "render",
-    ].iter().copied().collect()
+/// Default implicit entry points (lifecycle, framework, common patterns).
+/// Used when plugin TOML doesn't specify language-specific ones.
+const DEFAULT_IMPLICIT_ENTRY_POINTS: &[&str] = &[
+    "main", "new", "default", "init", "setup", "teardown",
+    "run", "start", "stop", "build", "configure", "register",
+    "update", "draw", "render", "serialize", "deserialize",
+];
+
+/// Default test function prefixes.
+const DEFAULT_TEST_PREFIXES: &[&str] = &["test_"];
+
+/// Collect implicit entry points from all loaded language profiles.
+/// Merges language-specific lists with universal defaults.
+fn implicit_entry_points() -> HashSet<String> {
+    let mut set: HashSet<String> = DEFAULT_IMPLICIT_ENTRY_POINTS.iter().map(|s| s.to_string()).collect();
+    for profile in crate::analysis::lang_registry::all_profiles() {
+        for ep in &profile.semantics.implicit_entry_points {
+            set.insert(ep.clone());
+        }
+    }
+    set
 }
 
 /// Check if a file should be skipped for dead-code analysis (test files).
+/// Uses the language profile's test detection — no hardcoded suffixes.
 fn is_dead_code_skip_file(file: &FileNode) -> bool {
-    if file.path.contains("test")
-        || file.path.ends_with("_tests.rs")
-        || file.path.contains("/tests/")
-    {
+    let profile = crate::analysis::lang_registry::profile(&file.lang);
+    if profile.is_test_file(&file.path) {
+        return true;
+    }
+    // Generic fallback: path contains "test" somewhere
+    if file.path.contains("test") || file.path.contains("/tests/") {
         return true;
     }
     if let Some(sa) = &file.sa {
@@ -379,17 +394,31 @@ fn is_dead_code_skip_file(file: &FileNode) -> bool {
 }
 
 /// Check if a function should be excluded from dead-code detection.
-fn is_excluded_function(func_name: &str, implicit: &HashSet<&str>) -> bool {
-    // Skip test/bench functions
-    if func_name.starts_with("test_") || func_name.starts_with("bench_") {
+/// Uses test_function_prefixes and qualified_name_separator from plugin TOML.
+fn is_excluded_function(func_name: &str, implicit: &HashSet<String>, lang: &str) -> bool {
+    let profile = crate::analysis::lang_registry::profile(lang);
+    let sem = &profile.semantics;
+
+    // Skip test/bench functions using configured prefixes
+    let test_prefixes = if sem.test_function_prefixes.is_empty() {
+        DEFAULT_TEST_PREFIXES.iter().map(|s| s.to_string()).collect::<Vec<_>>()
+    } else {
+        sem.test_function_prefixes.clone()
+    };
+    for prefix in &test_prefixes {
+        if func_name.starts_with(prefix.as_str()) {
+            return true;
+        }
+    }
+
+    // Skip qualified names (trait impl methods like Foo::bar or obj.method)
+    if !sem.qualified_name_separator.is_empty() && func_name.contains(&sem.qualified_name_separator) {
         return true;
     }
-    // Skip trait impl methods (Foo::bar pattern)
-    if func_name.contains("::") {
-        return true;
-    }
+
     // Skip implicit entry points
-    let base_name = func_name.rsplit("::").next().unwrap_or(func_name);
+    let sep = if sem.qualified_name_separator.is_empty() { "::" } else { &sem.qualified_name_separator };
+    let base_name = func_name.rsplit(sep).next().unwrap_or(func_name);
     implicit.contains(base_name)
 }
 
@@ -412,7 +441,7 @@ fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
             None => continue,
         };
         for f in funcs {
-            if is_excluded_function(&f.n, &implicit) { continue; }
+            if is_excluded_function(&f.n, &implicit, &file.lang) { continue; }
             if !is_called(&f.n, &all_calls) {
                 result.push(FuncMetric {
                     file: file.path.clone(),

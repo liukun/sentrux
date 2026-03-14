@@ -326,6 +326,19 @@ fn add_module_suffixes<'a>(index: &mut HashMap<String, Vec<&'a str>>, module_pat
 /// This is detected from the filename -- no language knowledge needed.
 fn build_module_suffix_index<'a>(known_files: &HashSet<&'a str>, scan_root: &Path, project_map: &HashMap<String, String>) -> SuffixIndex<'a> {
     let mut index: HashMap<String, Vec<&'a str>> = HashMap::new();
+
+    // Collect extensions for languages where directories are packages
+    // (e.g., Go: any .go file in a dir is part of that package).
+    // These files get parent-directory suffixes so package imports resolve.
+    let dir_pkg_exts: Vec<String> = crate::analysis::lang_registry::all_profiles()
+        .filter(|p| p.semantics.project.directory_is_package)
+        .flat_map(|p| {
+            crate::analysis::lang_registry::get(&p.name)
+                .map(|c| c.extensions.clone())
+                .unwrap_or_default()
+        })
+        .collect();
+
     for &file_path in known_files {
         let module_path = file_to_module_path(file_path);
         if module_path.is_empty() {
@@ -334,62 +347,80 @@ fn build_module_suffix_index<'a>(known_files: &HashSet<&'a str>, scan_root: &Pat
 
         add_module_suffixes(&mut index, module_path, file_path);
 
-        // Go imports reference packages (directories), not individual files.
-        // e.g. `import "internal/config"` means the package in internal/config/.
-        // Unlike Python (__init__.py) or Rust (mod.rs), Go has no package index
-        // file — any .go file in a directory is part of the package.
-        // Add parent-directory suffixes so Go package imports can resolve.
-        if file_path.ends_with(".go") {
-            if let Some((parent, _)) = module_path.rsplit_once('/') {
-                if !parent.is_empty() {
-                    add_module_suffixes(&mut index, parent, file_path);
+        // For directory-is-package languages: also add parent dir as module path.
+        // e.g., Go `import "internal/config"` references the directory, not a file.
+        if !dir_pkg_exts.is_empty() {
+            let has_dir_pkg_ext = file_path.rsplit('.').next()
+                .map_or(false, |ext| dir_pkg_exts.iter().any(|e| e == ext));
+            if has_dir_pkg_ext {
+                if let Some((parent, _)) = module_path.rsplit_once('/') {
+                    if !parent.is_empty() {
+                        add_module_suffixes(&mut index, parent, file_path);
+                    }
                 }
             }
         }
     }
 
-    // Go module prefixes: parse go.mod files to map module paths to project dirs.
-    let go_module_prefixes = collect_go_module_prefixes(project_map, scan_root);
+    // Module prefix files: parse files like go.mod to map module paths to project dirs.
+    // Reads module_prefix_file and module_prefix_directive from plugin TOML.
+    let module_prefixes = collect_module_prefixes(project_map, scan_root);
 
     // Manifest name → entry point (separate map for safe single-segment lookup)
     let mut manifest_name_aliases: HashMap<String, Vec<&'a str>> = HashMap::new();
     inject_manifest_name_aliases(&mut manifest_name_aliases, known_files, scan_root);
 
-    SuffixIndex { index, manifest_name_aliases, go_module_prefixes }
+    SuffixIndex { index, manifest_name_aliases, module_prefixes }
 }
 
-/// Extract the module path from a go.mod file content.
-/// Parses `module github.com/user/repo` from the first `module` directive.
-fn extract_go_module_name(content: &str) -> Option<&str> {
+/// Extract a module path from a file content using a directive keyword.
+/// Generic version: reads `<directive> <path>` from the first matching line.
+/// Works for Go (`module github.com/user/repo` in go.mod) and any similar format.
+fn extract_module_name_generic<'a>(content: &'a str, directive: &str) -> Option<&'a str> {
     for line in content.lines() {
         let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("module") {
+        if let Some(rest) = trimmed.strip_prefix(directive) {
             let rest = rest.trim();
             if rest.is_empty() { continue; }
-            // Module path is the first token (no quotes in go.mod)
             return Some(rest.split_whitespace().next().unwrap_or(rest));
         }
     }
     None
 }
 
-/// Scan project roots for go.mod files and build a map of Go module paths to project directories.
-/// Uses the project_map to find unique project roots, then checks each for go.mod.
+/// Scan project roots for module prefix files and build a map of module paths to project dirs.
+/// Reads module_prefix_file and module_prefix_directive from ALL loaded plugin profiles.
 /// Sorted longest-first so more specific module paths match before shorter ones.
-fn collect_go_module_prefixes(project_map: &HashMap<String, String>, scan_root: &Path) -> Vec<(String, String)> {
+fn collect_module_prefixes(project_map: &HashMap<String, String>, scan_root: &Path) -> Vec<(String, String)> {
+    // Collect all (file, directive) pairs from plugin profiles
+    let prefix_configs: Vec<(&str, &str)> = crate::analysis::lang_registry::all_profiles()
+        .filter(|p| !p.semantics.resolver.module_prefix_file.is_empty()
+                  && !p.semantics.resolver.module_prefix_directive.is_empty())
+        .map(|p| (
+            p.semantics.resolver.module_prefix_file.as_str(),
+            p.semantics.resolver.module_prefix_directive.as_str(),
+        ))
+        .collect();
+
+    if prefix_configs.is_empty() {
+        return Vec::new();
+    }
+
     let unique_roots: HashSet<&str> = project_map.values().map(|s| s.as_str()).collect();
     let mut prefixes = Vec::new();
 
     for &project_dir in &unique_roots {
-        let go_mod_path = if project_dir.is_empty() {
-            scan_root.join("go.mod")
-        } else {
-            scan_root.join(project_dir).join("go.mod")
-        };
+        for &(prefix_file, directive) in &prefix_configs {
+            let path = if project_dir.is_empty() {
+                scan_root.join(prefix_file)
+            } else {
+                scan_root.join(project_dir).join(prefix_file)
+            };
 
-        if let Ok(content) = std::fs::read_to_string(&go_mod_path) {
-            if let Some(module_name) = extract_go_module_name(&content) {
-                prefixes.push((module_name.to_string(), project_dir.to_string()));
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Some(module_name) = extract_module_name_generic(&content, directive) {
+                    prefixes.push((module_name.to_string(), project_dir.to_string()));
+                }
             }
         }
     }

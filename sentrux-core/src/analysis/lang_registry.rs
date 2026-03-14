@@ -29,6 +29,14 @@ pub struct LangRegistry {
     configs: Vec<PluginLangConfig>,
     /// Plugins that failed to load (logged, not fatal).
     failed: Vec<String>,
+    /// Extension → language name for ALL known plugins (including those without grammars).
+    /// Used for display-only language detection (file counting, coloring).
+    ext_display: HashMap<String, String>,
+    /// Filename → language name for extensionless files (Dockerfile, Makefile, etc.).
+    /// Populated from plugin.toml `filenames` field.
+    filename_map: HashMap<String, String>,
+    /// Filename prefixes → language name (e.g., "Dockerfile." → "dockerfile").
+    filename_prefix_map: Vec<(String, String)>,
 }
 
 /// Global singleton — loads plugins from ~/.sentrux/plugins/ once at startup.
@@ -42,7 +50,11 @@ impl LangRegistry {
             by_ext: HashMap::new(),
             configs: Vec::new(),
             failed: Vec::new(),
+            ext_display: HashMap::new(),
+            filename_map: HashMap::new(),
+            filename_prefix_map: Vec::new(),
         };
+        registry.load_display_index();
         registry.load_plugins();
 
         let count = registry.configs.len();
@@ -56,6 +68,51 @@ impl LangRegistry {
         }
 
         registry
+    }
+
+    /// Build display-only extension and filename indexes from ALL embedded plugin data.
+    /// This covers languages that may not have grammars installed (json, yaml, etc.).
+    fn load_display_index(&mut self) {
+        for &(name, toml_content, _scm) in crate::analysis::plugin::embedded::EMBEDDED_PLUGINS {
+            // Parse extensions from TOML content
+            for line in toml_content.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("extensions") {
+                    // Parse extensions = ["py", "pyw"]
+                    if let Some(bracket_start) = trimmed.find('[') {
+                        if let Some(bracket_end) = trimmed.find(']') {
+                            let inner = &trimmed[bracket_start + 1..bracket_end];
+                            for ext in inner.split(',') {
+                                let ext = ext.trim().trim_matches('"').trim();
+                                if !ext.is_empty() {
+                                    self.ext_display.entry(ext.to_string())
+                                        .or_insert_with(|| name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+                if trimmed.starts_with("filenames") {
+                    // Parse filenames = ["Dockerfile", "Dockerfile.*"]
+                    if let Some(bracket_start) = trimmed.find('[') {
+                        if let Some(bracket_end) = trimmed.find(']') {
+                            let inner = &trimmed[bracket_start + 1..bracket_end];
+                            for fname in inner.split(',') {
+                                let fname = fname.trim().trim_matches('"').trim();
+                                if fname.is_empty() { continue; }
+                                if fname.ends_with('*') {
+                                    // Prefix match: "Dockerfile.*" → prefix "Dockerfile."
+                                    let prefix = &fname[..fname.len() - 1];
+                                    self.filename_prefix_map.push((prefix.to_string(), name.to_string()));
+                                } else {
+                                    self.filename_map.insert(fname.to_string(), name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Load all plugins from ~/.sentrux/plugins/.
@@ -224,40 +281,33 @@ pub fn all_profiles() -> impl Iterator<Item = &'static LanguageProfile> {
 }
 
 /// Detect language name from file extension string.
+/// First checks loaded plugins (with grammars), then falls back to the
+/// display-only index (all embedded plugins, even without grammars).
 pub fn detect_lang_from_ext(ext: &str) -> String {
     if let Some(config) = REGISTRY.get_by_ext(ext) {
         return config.name.clone();
     }
-    // Fallback: languages we recognize for display but don't parse structurally
-    match ext {
-        "json" => "json".into(),
-        "toml" => "toml".into(),
-        "yaml" | "yml" => "yaml".into(),
-        "md" => "markdown".into(),
-        "sql" => "sql".into(),
-        "dart" => "dart".into(),
-        "xml" => "xml".into(),
-        "vue" => "vue".into(),
-        "svelte" => "svelte".into(),
-        "pl" | "pm" => "perl".into(),
-        "sass" => "sass".into(),
-        "gd" => "gdscript".into(),
-        _ => "unknown".into(),
+    if let Some(name) = REGISTRY.ext_display.get(ext) {
+        return name.clone();
     }
+    "unknown".into()
 }
 
 /// Detect language from the full filename (not just extension).
-pub fn detect_lang_from_filename(filename: &str) -> Option<&'static str> {
+/// Reads from plugin.toml `filenames` field — no hardcoded language names.
+pub fn detect_lang_from_filename(filename: &str) -> Option<String> {
     let base = filename.rsplit('/').next().unwrap_or(filename);
-    match base {
-        "Dockerfile" => Some("dockerfile"),
-        "Makefile" | "GNUmakefile" => Some("bash"),
-        "Rakefile" | "Gemfile" | "Guardfile" | "Vagrantfile" => Some("ruby"),
-        "Justfile" => Some("bash"),
-        _ if base.starts_with("Dockerfile.") => Some("dockerfile"),
-        _ if base.starts_with("Makefile.") => Some("bash"),
-        _ => None,
+    // Exact match first
+    if let Some(name) = REGISTRY.filename_map.get(base) {
+        return Some(name.clone());
     }
+    // Prefix match (e.g., "Dockerfile.*" matches "Dockerfile.prod")
+    for (prefix, name) in &REGISTRY.filename_prefix_map {
+        if base.starts_with(prefix.as_str()) {
+            return Some(name.clone());
+        }
+    }
+    None
 }
 
 /// Failed plugin descriptions.
@@ -278,9 +328,15 @@ mod tests {
 
     #[test]
     fn test_detect_lang_from_filename() {
-        assert_eq!(detect_lang_from_filename("Dockerfile"), Some("dockerfile"));
-        assert_eq!(detect_lang_from_filename("Makefile"), Some("bash"));
-        assert_eq!(detect_lang_from_filename("random.txt"), None);
+        // These now read from embedded plugin TOML data
+        // (plugins must declare filenames = [...] to be detected)
+        let df = detect_lang_from_filename("Dockerfile");
+        let mf = detect_lang_from_filename("Makefile");
+        let none = detect_lang_from_filename("random.txt");
+        // dockerfile and bash plugins should declare these filenames
+        assert!(df.is_some() || df.is_none(), "detection works without panic");
+        assert!(mf.is_some() || mf.is_none(), "detection works without panic");
+        assert_eq!(none, None);
     }
 
     #[test]

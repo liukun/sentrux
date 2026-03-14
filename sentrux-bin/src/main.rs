@@ -438,12 +438,11 @@ capabilities = ["functions", "classes", "imports"]
             }
         }
         PluginAction::AddStandard => {
-            let standard = [
-                "python", "javascript", "typescript", "rust", "go",
-                "c", "cpp", "java", "ruby", "csharp", "php", "bash",
-                "html", "css", "scss", "swift", "lua", "scala",
-                "elixir", "haskell", "zig", "r", "ocaml",
-            ];
+            // Derive standard language list from embedded plugins — single source of truth
+            let standard: Vec<&str> = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+                .iter()
+                .map(|&(name, _, _)| name)
+                .collect();
             let dir = sentrux_core::analysis::plugin::plugins_dir()
                 .unwrap_or_else(|| { eprintln!("Cannot determine home directory"); std::process::exit(1); });
             std::fs::create_dir_all(&dir).unwrap();
@@ -700,13 +699,11 @@ fn ensure_grammars_installed() {
     let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
     let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
 
-    // Standard languages that have pre-compiled grammars available
-    let standard = [
-        "python", "javascript", "typescript", "rust", "go",
-        "c", "cpp", "java", "ruby", "csharp", "php", "bash",
-        "html", "css", "scss", "swift", "lua", "scala",
-        "elixir", "haskell", "zig", "r", "gdscript",
-    ];
+    // Derive from embedded plugins — single source of truth, no hardcoded list
+    let standard: Vec<&str> = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+        .iter()
+        .map(|&(name, _, _)| name)
+        .collect();
 
     // Find which grammars are missing
     let missing: Vec<&&str> = standard.iter()

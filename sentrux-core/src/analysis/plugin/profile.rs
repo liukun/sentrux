@@ -79,6 +79,22 @@ pub struct LanguageSemantics {
     /// Checked against the source text of the class definition node.
     pub abstract_keywords: Vec<String>,
 
+    /// Function name prefixes that indicate test/bench functions (excluded from dead-code).
+    /// Examples: Rust/Python `["test_"]`, Rust `["bench_"]`.
+    #[serde(default)]
+    pub test_function_prefixes: Vec<String>,
+
+    /// Implicit entry points: function names always considered "used" (dead-code analysis).
+    /// Examples: Rust trait methods `["from", "into", "clone", "fmt", "drop"]`,
+    ///          lifecycle methods `["main", "init", "setup", "run"]`.
+    #[serde(default)]
+    pub implicit_entry_points: Vec<String>,
+
+    /// Qualified name separator (for detecting trait impl methods in dead-code).
+    /// Rust: "::", Java: ".", Python: ".". Empty = no qualified name detection.
+    #[serde(default)]
+    pub qualified_name_separator: String,
+
     // ── Entry point detection ──
 
     /// Whether this language can have executable entry points.
@@ -88,6 +104,64 @@ pub struct LanguageSemantics {
     /// Filenames (without directory) that indicate application entry points.
     /// Examples: `["main.py", "app.py", "server.py"]` for Python.
     pub main_filenames: Vec<String>,
+
+    /// Entry point tag patterns to recognize in @entry captures.
+    /// Examples: Python `["__main__"]`, Rust `["@main", "tokio::main", "#[main]"]`,
+    ///          Swift `["@main", "@UIApplicationMain"]`.
+    /// Matched via `contains()` against the captured text.
+    #[serde(default)]
+    pub entry_point_patterns: Vec<String>,
+
+    // ── Test module detection (import filtering) ──
+
+    /// Node kind for test module declarations (to exclude from import graph).
+    /// Rust: "mod_item". Empty = no test-module filtering.
+    #[serde(default)]
+    pub test_module_kind: String,
+
+    /// Node kind for attribute/annotation preceding test modules.
+    /// Rust: "attribute_item". Empty = no attribute-based test detection.
+    #[serde(default)]
+    pub test_attribute_kind: String,
+
+    /// Text patterns that identify a test attribute (checked via `contains()`).
+    /// Rust: ["cfg", "test"]. ALL patterns must be present in the attribute text.
+    #[serde(default)]
+    pub test_attribute_patterns: Vec<String>,
+
+    // ── Parameter counting (AST-based) ──
+
+    /// Node kinds for parameter list containers.
+    /// Examples: ["parameters", "formal_parameters", "parameter_list"].
+    #[serde(default)]
+    pub param_list_kinds: Vec<String>,
+
+    /// Node kinds that represent self/this parameters (excluded from count).
+    /// Examples: ["self_parameter"].
+    #[serde(default)]
+    pub self_param_kinds: Vec<String>,
+
+    /// Text values for self/this parameters (excluded from count).
+    /// Examples: ["self", "&self", "&mut self", "this"].
+    #[serde(default)]
+    pub self_param_texts: Vec<String>,
+
+    /// Node kinds that represent countable parameters.
+    /// Examples: ["parameter", "typed_parameter", "default_parameter"].
+    #[serde(default)]
+    pub param_kinds: Vec<String>,
+
+    // ── Base class extraction ──
+
+    /// Node kinds that represent type identifiers in class inheritance.
+    /// Examples: ["type_identifier", "identifier", "constant", "scope_resolution"].
+    #[serde(default)]
+    pub type_identifier_kinds: Vec<String>,
+
+    /// Keywords that indicate visibility modifiers (filtered from base class extraction).
+    /// Examples: ["public", "private", "protected"].
+    #[serde(default)]
+    pub visibility_keywords: Vec<String>,
 
     // ── Test file detection ──
 
@@ -177,6 +251,25 @@ pub struct ImportAstConfig {
     /// (e.g., Elixir multi-alias: call → arguments → tuple → alias).
     pub recursive_search: bool,
 
+    // ── Multi-alias expansion (e.g., Elixir: alias Domain.{A, B}) ──
+
+    /// Node kind that wraps prefix + list (Elixir: "dot").
+    /// When found during recursive search, expands prefix.item for each item.
+    #[serde(default)]
+    pub multi_alias_container: String,
+
+    /// Field name on the container node that holds the prefix (Elixir: "left").
+    #[serde(default)]
+    pub multi_alias_prefix_field: String,
+
+    /// Field name on the container node that holds the items list (Elixir: "right").
+    #[serde(default)]
+    pub multi_alias_list_field: String,
+
+    /// Node kinds for the items container (Elixir: ["tuple", "list"]).
+    #[serde(default)]
+    pub multi_alias_list_kinds: Vec<String>,
+
     // ── scoped_path strategy ──
 
     /// Separator for joining scoped path segments. Rust: "::", Java: ".".
@@ -187,6 +280,21 @@ pub struct ImportAstConfig {
 
     /// Node kinds for scoped path nodes. Rust: ["scoped_identifier", "scoped_use_list"].
     pub scoped_path_kinds: Vec<String>,
+
+    /// Node kind for `mod foo;` style declarations. Rust: "mod_item".
+    /// When the import node matches this kind, reads the "name" field directly.
+    #[serde(default)]
+    pub mod_declaration_kind: String,
+
+    /// Leaf identifier node kinds for scoped_path strategy.
+    /// Rust: ["identifier", "crate", "self"]. Default fallback if empty.
+    #[serde(default)]
+    pub leaf_identifier_kinds: Vec<String>,
+
+    /// Whether to skip uppercase identifiers inside use_list (they're type imports).
+    /// Rust: true. The parent module path is the real dependency, not the type name.
+    #[serde(default)]
+    pub skip_type_imports_in_use_list: bool,
 
     // ── Python relative imports ──
 
@@ -218,9 +326,16 @@ impl Default for ImportAstConfig {
             string_content_kind: String::new(),
             child_import_kind: String::new(),
             recursive_search: false,
+            multi_alias_container: String::new(),
+            multi_alias_prefix_field: String::new(),
+            multi_alias_list_field: String::new(),
+            multi_alias_list_kinds: Vec::new(),
             path_separator: String::new(),
             use_list_kind: String::new(),
             scoped_path_kinds: Vec::new(),
+            mod_declaration_kind: String::new(),
+            leaf_identifier_kinds: Vec::new(),
+            skip_type_imports_in_use_list: false,
             relative_import_kind: String::new(),
             import_prefix_kind: String::new(),
             module_name_transform: String::new(),
@@ -499,8 +614,21 @@ impl Default for LanguageSemantics {
             package_index_files: Vec::new(),
             abstract_base_classes: Vec::new(),
             abstract_keywords: Vec::new(),
+            test_function_prefixes: Vec::new(),
+            implicit_entry_points: Vec::new(),
+            qualified_name_separator: String::new(),
             is_executable: false, // Must be explicitly set by plugins that can have entry points
             main_filenames: Vec::new(),
+            entry_point_patterns: Vec::new(),
+            test_module_kind: String::new(),
+            test_attribute_kind: String::new(),
+            test_attribute_patterns: Vec::new(),
+            param_list_kinds: Vec::new(),
+            self_param_kinds: Vec::new(),
+            self_param_texts: Vec::new(),
+            param_kinds: Vec::new(),
+            type_identifier_kinds: Vec::new(),
+            visibility_keywords: Vec::new(),
             test_dir_prefixes: Vec::new(),
             test_dir_infixes: Vec::new(),
             test_suffixes: Vec::new(),
