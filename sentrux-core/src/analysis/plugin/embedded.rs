@@ -1,5 +1,8 @@
 //! Embedded plugin configs — auto-extracted at startup.
-//! Generated from installed plugins. Binary version = plugin version.
+//! ALL 50 languages. Binary version = plugin version. Always in sync.
+//!
+//! Plugins without compiled grammars load config only (colors, extensions,
+//! thresholds). Structural analysis activates when grammar .dylib is installed.
 
 /// (name, plugin_toml_content, tags_scm_content)
 pub const EMBEDDED_PLUGINS: &[(&str, &str, &str)] = &[
@@ -159,6 +162,57 @@ r#"; Official tree-sitter-c tags.scm (v0.23.4)
   function: (field_expression
     field: (field_identifier) @call.name)) @call
 "#),
+    ("clojure",
+r#"[plugin]
+name = "clojure"
+display_name = "Clojure"
+version = "0.2.0"
+extensions = ["clj", "cljs", "cljc"]
+min_sentrux_version = "0.4.0"
+color_rgb = [80, 145, 55]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-clojure"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["deps.edn", "project.clj"]
+ignored_dirs = ["target", ".cpcache", ".clj-kondo"]
+source_dirs = ["src"]
+"#,
+r#"; Clojure tags.scm
+; Clojure uses list forms: (defn name ...), (def name ...), (ns name ...)
+
+(list_lit
+  value: (sym_lit) @name
+  (#match? @name "^(defn|defn-|defmacro|defmethod|defmulti)$")
+  value: (sym_lit) @func.name) @definition.function
+
+(list_lit
+  value: (sym_lit) @name
+  (#match? @name "^(defprotocol|defrecord|deftype|definterface)$")
+  value: (sym_lit) @class.name) @definition.class
+
+; ---- Import appendix ----
+; ns form with :require
+(list_lit
+  value: (sym_lit) @name
+  (#eq? @name "ns")) @import
+"#),
     ("cpp",
 r#"[plugin]
 name = "cpp"
@@ -268,6 +322,73 @@ r#"; Official tree-sitter-cpp tags.scm (v0.23.4)
 ; Calls — new constructor  new Foo()
 (new_expression
   type: (type_identifier) @call.name) @call
+"#),
+    ("crystal",
+r#"[plugin]
+name = "crystal"
+display_name = "Crystal"
+version = "0.2.0"
+extensions = ["cr"]
+min_sentrux_version = "0.4.0"
+color_rgb = [0, 0, 0]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-crystal"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+hash_is_comment = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+manifest_files = ["shard.yml"]
+ignored_dirs = ["lib", ".shards"]
+source_dirs = ["src"]
+
+[semantics.resolver]
+alias_file = "shard.yml"
+alias_field = "name"
+source_root = "src"
+
+[semantics.complexity]
+branch_nodes = ["if", "elsif", "for", "while", "unless", "until", "when", "rescue"]
+logic_nodes = ["binary"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if", "for", "while", "unless", "case"]
+"#,
+r#"; Crystal tags.scm (Ruby-like syntax)
+
+(method_def
+  name: (identifier) @name) @definition.function
+
+(class_def
+  name: (constant) @name) @definition.class
+
+(module_def
+  name: (constant) @name) @definition.module
+
+(struct_def
+  name: (constant) @name) @definition.class
+
+(call
+  method: (identifier) @name) @reference.call
+
+; ---- Import appendix ----
+
+(require
+  (string) @import.module) @import
 "#),
     ("csharp",
 r#"[plugin]
@@ -414,6 +535,88 @@ r#"; CSS structural queries
 (import_statement
   [(string_value) (call_expression)] @import.module) @import
 "#),
+    ("dart",
+r#"[plugin]
+name = "dart"
+display_name = "Dart"
+version = "0.2.0"
+extensions = ["dart"]
+min_sentrux_version = "0.4.0"
+color_rgb = [100, 180, 220]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/AKushWarrior/tree-sitter-dart"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+manifest_files = ["pubspec.yaml"]
+ignored_dirs = [".dart_tool", "build", ".pub-cache"]
+source_dirs = ["lib"]
+
+[semantics.resolver]
+alias_file = "pubspec.yaml"
+alias_field = "name"
+source_root = "lib"
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement"]
+"#,
+r#"; Dart tags.scm
+
+(function_signature
+  name: (identifier) @name) @definition.function
+
+(method_signature
+  (function_signature
+    name: (identifier) @name)) @definition.function
+
+(class_definition
+  name: (identifier) @name) @definition.class
+
+(enum_declaration
+  name: (identifier) @name) @definition.class
+
+; ---- Import appendix ----
+
+(import_or_export
+  (configurable_uri) @import.module) @import
+"#),
+    ("dockerfile",
+r#"[plugin]
+name = "dockerfile"
+display_name = "Dockerfile"
+version = "0.2.0"
+extensions = ["dockerfile"]
+min_sentrux_version = "0.4.0"
+color_rgb = [60, 80, 90]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[semantics]
+is_executable = false
+"#,
+r#"; Dockerfile — display-only language, no structural analysis
+"#),
     ("elixir",
 r#"[plugin]
 name = "elixir"
@@ -515,6 +718,119 @@ r#"; Official tree-sitter-elixir tags.scm (v0.3.5)
   target: (identifier) @_import_kw2
   (#any-of? @_import_kw2 "alias" "import" "use" "require")) @import
 "#),
+    ("erlang",
+r#"[plugin]
+name = "erlang"
+display_name = "Erlang"
+version = "0.2.0"
+extensions = ["erl", "hrl"]
+min_sentrux_version = "0.4.0"
+color_rgb = [160, 50, 50]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/WhatsApp/tree-sitter-erlang"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+source_dirs = ["src"]
+ignored_dirs = ["_build", "deps"]
+manifest_files = ["rebar.config"]
+
+[semantics.complexity]
+branch_nodes = ["if_expr", "case_expr", "receive_expr", "try_expr", "catch_clause"]
+logic_nodes = []
+logic_operators = ["andalso", "orelse"]
+nesting_nodes = ["if_expr", "case_expr", "receive_expr", "try_expr"]
+"#,
+r#"; Erlang tags.scm
+
+(function_clause
+  name: (atom) @name) @definition.function
+
+(attribute
+  name: (atom) @attr_name
+  (#eq? @attr_name "module")) @definition.module
+
+; ---- Import appendix ----
+
+(attribute
+  name: (atom) @attr_name
+  (#match? @attr_name "^(import|include|include_lib)$")) @import
+"#),
+    ("fsharp",
+r#"[plugin]
+name = "fsharp"
+display_name = "F#"
+version = "0.2.0"
+extensions = ["fs", "fsx", "fsi"]
+min_sentrux_version = "0.4.0"
+color_rgb = [55, 120, 185]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-fsharp"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["*.fsproj"]
+ignored_dirs = ["bin", "obj", ".fable"]
+source_dirs = ["src"]
+
+[semantics.resolver]
+alias_file = "*.fsproj"
+alias_field = "Project.PropertyGroup.AssemblyName"
+
+[semantics.complexity]
+branch_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
+logic_nodes = ["infix_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
+"#,
+r#"; F# tags.scm
+
+(function_or_value_defn
+  (value_declaration_left
+    (identifier_pattern) @name)) @definition.function
+
+(type_definition
+  (type_name
+    (long_identifier) @name)) @definition.class
+
+(module_defn
+  (long_identifier) @name) @definition.module
+
+; ---- Import appendix ----
+
+(open_declaration
+  (long_identifier) @import.module) @import
+"#),
     ("gdscript",
 r#"[plugin]
 name = "gdscript"
@@ -568,6 +884,53 @@ r#";; GDScript structural queries for sentrux
 (call
   (arguments
     (string) @import.module)) @import
+"#),
+    ("glsl",
+r#"[plugin]
+name = "glsl"
+display_name = "GLSL"
+version = "0.2.0"
+extensions = ["glsl", "vert", "frag", "comp"]
+min_sentrux_version = "0.4.0"
+color_rgb = [90, 200, 90]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-glsl"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement", "case_statement"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement"]
+"#,
+r#"; GLSL tags.scm
+
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @name)) @definition.function
+
+(struct_specifier
+  name: (type_identifier) @name) @definition.class
+
+; ---- Import appendix ----
+
+(preproc_include
+  path: (_) @import.module) @import
 "#),
     ("go",
 r#"[plugin]
@@ -664,6 +1027,61 @@ r#"; Official tree-sitter-go tags.scm (v0.23.4)
 
 (import_declaration) @import
 "#),
+    ("groovy",
+r#"[plugin]
+name = "groovy"
+display_name = "Groovy"
+version = "0.2.0"
+extensions = ["groovy", "gvy"]
+min_sentrux_version = "0.4.0"
+color_rgb = [70, 152, 182]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-groovy"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+manifest_files = ["build.gradle"]
+ignored_dirs = ["build", ".gradle"]
+source_dirs = ["src"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "switch_statement"]
+"#,
+r#"; Groovy tags.scm
+
+(method_declaration
+  name: (identifier) @name) @definition.function
+
+(class_declaration
+  name: (identifier) @name) @definition.class
+
+(interface_declaration
+  name: (identifier) @name) @definition.interface
+
+; ---- Import appendix ----
+
+(import_declaration
+  (qualified_name) @import.module) @import
+"#),
     ("haskell",
 r#"[plugin]
 name = "haskell"
@@ -721,6 +1139,45 @@ r#"; Haskell structural queries (hand-written, no official tags.scm)
 ; Import declarations
 (import
   module: (module) @import.module) @import
+"#),
+    ("hcl",
+r#"[plugin]
+name = "hcl"
+display_name = "HCL"
+version = "0.2.0"
+extensions = ["tf", "hcl"]
+min_sentrux_version = "0.4.0"
+color_rgb = [100, 70, 180]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-hcl"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+
+[semantics.project]
+ignored_dirs = [".terraform"]
+"#,
+r#"; HCL / Terraform tags.scm
+
+(block
+  (identifier) @block.type
+  (string_lit) @name) @definition.function
+
+(attribute
+  (identifier) @name) @definition.constant
 "#),
     ("html",
 r#"[plugin]
@@ -1050,6 +1507,150 @@ r#"; Official tree-sitter-javascript tags.scm (v0.23.1)
 (import_statement
   source: (string) @import.module) @import
 "#),
+    ("json",
+r#"[plugin]
+name = "json"
+display_name = "JSON"
+version = "0.1.0"
+extensions = ["json", "jsonc"]
+color_rgb = [60, 65, 70]
+
+[semantics]
+is_executable = false
+"#,
+r#"; JSON — display only, no structural analysis
+"#),
+    ("julia",
+r#"[plugin]
+name = "julia"
+display_name = "Julia"
+version = "0.2.0"
+extensions = ["jl"]
+min_sentrux_version = "0.4.0"
+color_rgb = [149, 88, 178]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-julia"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["Project.toml"]
+ignored_dirs = [".julia", "deps"]
+source_dirs = ["src"]
+
+[semantics.resolver]
+alias_file = "Project.toml"
+alias_field = "name"
+source_root = "src"
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "elseif_clause", "for_statement", "while_statement", "try_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "try_statement"]
+"#,
+r#"; Julia tags.scm
+
+(function_definition
+  name: (identifier) @name) @definition.function
+
+(short_function_definition
+  name: (identifier) @name) @definition.function
+
+(struct_definition
+  name: (identifier) @name) @definition.class
+
+(abstract_definition
+  name: (identifier) @name) @definition.class
+
+(module_definition
+  name: (identifier) @name) @definition.module
+
+(call_expression
+  (identifier) @name) @reference.call
+
+; ---- Import appendix ----
+
+(import_statement) @import
+
+(using_statement) @import
+"#),
+    ("kotlin",
+r#"[plugin]
+name = "kotlin"
+display_name = "Kotlin"
+version = "0.2.0"
+extensions = ["kt", "kts"]
+min_sentrux_version = "0.4.0"
+color_rgb = [135, 105, 190]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/fwcd/tree-sitter-kotlin"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+dot_is_module_separator = true
+is_executable = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+manifest_files = ["build.gradle.kts", "build.gradle"]
+ignored_dirs = ["build", ".gradle", ".idea"]
+source_dirs = ["src"]
+
+[semantics.complexity]
+branch_nodes = ["if_expression", "when_expression", "for_statement", "while_statement", "do_while_statement", "catch_block"]
+logic_nodes = ["conjunction_expression", "disjunction_expression"]
+logic_operators = []
+nesting_nodes = ["if_expression", "for_statement", "while_statement", "do_while_statement", "when_expression"]
+"#,
+r#"; Kotlin tags.scm
+
+(function_declaration
+  (simple_identifier) @name) @definition.function
+
+(class_declaration
+  (type_identifier) @name) @definition.class
+
+(object_declaration
+  (type_identifier) @name) @definition.class
+
+(interface_declaration
+  (type_identifier) @name) @definition.interface
+
+(call_expression
+  (simple_identifier) @name) @reference.call
+
+; ---- Import appendix ----
+
+(import_header
+  (identifier) @import.module) @import
+"#),
     ("lua",
 r#"[plugin]
 name = "lua"
@@ -1133,6 +1734,300 @@ r#"; Official tree-sitter-lua tags.scm (v0.5.0)
   arguments: (arguments
     (string) @import.module)
   (#eq? @_fn "require")) @import
+"#),
+    ("markdown",
+r#"[plugin]
+name = "markdown"
+display_name = "Markdown"
+version = "0.2.0"
+extensions = ["md", "mdx"]
+min_sentrux_version = "0.4.0"
+color_rgb = [50, 70, 135]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[semantics]
+is_executable = false
+"#,
+r#"; Markdown — display-only language, no structural analysis
+"#),
+    ("nim",
+r#"[plugin]
+name = "nim"
+display_name = "Nim"
+version = "0.2.0"
+extensions = ["nim", "nims"]
+min_sentrux_version = "0.4.0"
+color_rgb = [255, 225, 95]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-nim"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+hash_is_comment = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["*.nimble"]
+ignored_dirs = ["nimcache"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "elif_branch", "for_statement", "while_statement", "case_statement", "try_statement", "except_branch"]
+logic_nodes = ["infix_expression"]
+logic_operators = ["and", "or"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "case_statement", "try_statement"]
+"#,
+r#"; Nim tags.scm
+
+(proc_declaration
+  name: (identifier) @name) @definition.function
+
+(func_declaration
+  name: (identifier) @name) @definition.function
+
+(method_declaration
+  name: (identifier) @name) @definition.function
+
+(type_section
+  (type_declaration
+    (type_symbol_declaration
+      name: (identifier) @name))) @definition.class
+
+; ---- Import appendix ----
+
+(import_statement) @import
+
+(from_statement) @import
+"#),
+    ("nix",
+r#"[plugin]
+name = "nix"
+display_name = "Nix"
+version = "0.2.0"
+extensions = ["nix"]
+min_sentrux_version = "0.4.0"
+color_rgb = [126, 186, 228]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/nix-community/tree-sitter-nix"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+hash_is_comment = true
+import_extractor = ""
+"#,
+r#"; Nix tags.scm
+
+(binding
+  attrpath: (attrpath
+    (identifier) @name)) @definition.function
+
+(with_expression) @import
+
+(inherit
+  (identifier) @name) @definition.constant
+"#),
+    ("objective-c",
+r#"[plugin]
+name = "objective-c"
+display_name = "Objective-C"
+version = "0.2.0"
+extensions = ["m", "h"]
+min_sentrux_version = "0.4.0"
+color_rgb = [65, 105, 225]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-objc"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+source_dirs = ["src"]
+ignored_dirs = ["build", "DerivedData"]
+
+
+[semantics.project]
+implicit_module = true
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement"]
+"#,
+r#"; Objective-C tags.scm
+
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @name)) @definition.function
+
+(method_declaration
+  selector: (keyword_selector
+    (keyword_declarator
+      keyword: (identifier) @name))) @definition.function
+
+(class_interface
+  name: (identifier) @name) @definition.class
+
+(protocol_declaration
+  name: (identifier) @name) @definition.interface
+
+(category_interface
+  name: (identifier) @name) @definition.class
+
+; ---- Import appendix ----
+
+(preproc_import
+  path: (_) @import.module) @import
+
+(preproc_include
+  path: (_) @import.module) @import
+"#),
+    ("ocaml",
+r#"[plugin]
+name = "ocaml"
+display_name = "OCaml"
+version = "0.2.0"
+extensions = ["ml", "mli"]
+min_sentrux_version = "0.4.0"
+color_rgb = [180, 110, 45]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-ocaml"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["dune-project"]
+ignored_dirs = ["_build", "_opam"]
+source_dirs = ["lib", "bin"]
+
+[semantics.complexity]
+branch_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
+logic_nodes = ["infix_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
+"#,
+r#"; OCaml tags.scm
+
+(value_definition
+  (let_binding
+    pattern: (value_name) @name)) @definition.function
+
+(type_definition
+  (type_binding
+    name: (type_constructor) @name)) @definition.class
+
+(module_definition
+  (module_binding
+    name: (module_name) @name)) @definition.module
+
+; ---- Import appendix ----
+
+(open_module
+  (module_path) @import.module) @import
+"#),
+    ("perl",
+r#"[plugin]
+name = "perl"
+display_name = "Perl"
+version = "0.2.0"
+extensions = ["pl", "pm"]
+min_sentrux_version = "0.4.0"
+color_rgb = [85, 85, 120]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-perl/tree-sitter-perl"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+hash_is_comment = true
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["Makefile.PL", "Build.PL", "cpanfile"]
+ignored_dirs = ["blib", ".build"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "unless_statement", "until_statement"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||", "and", "or"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "unless_statement"]
+"#,
+r#"; Perl tags.scm
+
+(subroutine_declaration_statement
+  name: (bareword) @name) @definition.function
+
+(package_statement
+  (package_name) @name) @definition.class
+
+; ---- Import appendix ----
+
+(use_statement
+  (package_name) @import.module) @import
 "#),
     ("php",
 r#"[plugin]
@@ -1243,6 +2138,100 @@ r#"; Official tree-sitter-php tags.scm (v0.23.11)
 ; require_once 'file.php' / include 'file.php'
 (include_expression
   (string (string_content) @import.module)) @import
+"#),
+    ("powershell",
+r#"[plugin]
+name = "powershell"
+display_name = "PowerShell"
+version = "0.2.0"
+extensions = ["ps1", "psm1", "psd1"]
+min_sentrux_version = "0.4.0"
+color_rgb = [1, 36, 86]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-powershell"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes"]
+
+[checksums]
+
+[semantics]
+hash_is_comment = true
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["*.psd1"]
+ignored_dirs = ["bin", "obj"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "elseif_clause", "for_statement", "foreach_statement", "while_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["-and", "-or"]
+nesting_nodes = ["if_statement", "for_statement", "foreach_statement", "while_statement", "switch_statement"]
+"#,
+r#"; PowerShell tags.scm
+
+(function_statement
+  name: (command_name_expr) @name) @definition.function
+
+(class_statement
+  name: (identifier) @name) @definition.class
+
+(enum_statement
+  name: (identifier) @name) @definition.class
+"#),
+    ("protobuf",
+r#"[plugin]
+name = "protobuf"
+display_name = "Protocol Buffers"
+version = "0.2.0"
+extensions = ["proto"]
+min_sentrux_version = "0.4.0"
+color_rgb = [60, 60, 60]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-protobuf"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+"#,
+r#"; Protocol Buffers tags.scm
+
+(message
+  (message_name) @name) @definition.class
+
+(enum
+  (enum_name) @name) @definition.class
+
+(service
+  (service_name) @name) @definition.class
+
+(rpc
+  (rpc_name) @name) @definition.function
+
+; ---- Import appendix ----
+
+(import) @import
 "#),
     ("python",
 r#"[plugin]
@@ -1812,6 +2801,132 @@ r#"; SCSS structural queries
 (import_statement
   [(string_value) (call_expression)] @import.module) @import
 "#),
+    ("solidity",
+r#"[plugin]
+name = "solidity"
+display_name = "Solidity"
+version = "0.2.0"
+extensions = ["sol"]
+min_sentrux_version = "0.4.0"
+color_rgb = [98, 126, 234]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/JoranHonig/tree-sitter-solidity"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["hardhat.config.js", "hardhat.config.ts", "truffle-config.js", "foundry.toml"]
+ignored_dirs = ["node_modules", "artifacts", "cache", "out"]
+source_dirs = ["contracts", "src"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement"]
+"#,
+r#"; Solidity tags.scm
+
+(function_definition
+  name: (identifier) @name) @definition.function
+
+(contract_declaration
+  name: (identifier) @name) @definition.class
+
+(interface_declaration
+  name: (identifier) @name) @definition.interface
+
+(library_declaration
+  name: (identifier) @name) @definition.module
+
+(struct_declaration
+  name: (identifier) @name) @definition.class
+
+(event_definition
+  name: (identifier) @name) @definition.function
+
+; ---- Import appendix ----
+
+(import_directive
+  (import_path) @import.module) @import
+"#),
+    ("sql",
+r#"[plugin]
+name = "sql"
+display_name = "SQL"
+version = "0.2.0"
+extensions = ["sql"]
+min_sentrux_version = "0.4.0"
+color_rgb = [220, 140, 60]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[semantics]
+is_executable = false
+"#,
+r#"; SQL — display-only language, no structural analysis
+"#),
+    ("svelte",
+r#"[plugin]
+name = "svelte"
+display_name = "Svelte"
+version = "0.2.0"
+extensions = ["svelte"]
+min_sentrux_version = "0.4.0"
+color_rgb = [255, 62, 0]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-svelte"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["package.json"]
+ignored_dirs = ["node_modules", ".svelte-kit", "build"]
+
+[semantics.resolver]
+alias_file = "package.json"
+alias_field = "name"
+source_root = "src"
+"#,
+r#"; Svelte tags.scm
+; Svelte files contain embedded script elements with JS/TS
+
+(script_element) @definition.module
+
+(element
+  (start_tag
+    (tag_name) @name)) @reference.call
+"#),
     ("swift",
 r#"[plugin]
 name = "swift"
@@ -1893,6 +3008,19 @@ r#"; Based on official tree-sitter-swift tags.scm (v0.7.1)
   (navigation_expression
     (navigation_suffix
       (simple_identifier) @call.name))) @call
+"#),
+    ("toml",
+r#"[plugin]
+name = "toml"
+display_name = "TOML"
+version = "0.1.0"
+extensions = ["toml"]
+color_rgb = [130, 75, 50]
+
+[semantics]
+is_executable = false
+"#,
+r#"; TOML — display only, no structural analysis
 "#),
     ("typescript",
 r#"[plugin]
@@ -2077,6 +3205,125 @@ r#"; Official tree-sitter-typescript tags.scm (v0.23.2) + inlined JS base patter
 
 (import_statement
   source: (string) @import.module) @import
+"#),
+    ("vlang",
+r#"[plugin]
+name = "vlang"
+display_name = "V"
+version = "0.2.0"
+extensions = ["v"]
+min_sentrux_version = "0.4.0"
+color_rgb = [80, 130, 200]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-v"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["v.mod"]
+ignored_dirs = [".vcache"]
+
+[semantics.complexity]
+branch_nodes = ["if_expression", "for_statement", "match_expression", "else_branch"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_expression", "for_statement", "match_expression"]
+"#,
+r#"; V language tags.scm
+
+(function_declaration
+  name: (identifier) @name) @definition.function
+
+(struct_declaration
+  name: (identifier) @name) @definition.class
+
+(enum_declaration
+  name: (identifier) @name) @definition.class
+
+(interface_declaration
+  name: (identifier) @name) @definition.interface
+
+; ---- Import appendix ----
+
+(import_declaration
+  (import_path) @import.module) @import
+"#),
+    ("vue",
+r#"[plugin]
+name = "vue"
+display_name = "Vue"
+version = "0.2.0"
+extensions = ["vue"]
+min_sentrux_version = "0.4.0"
+color_rgb = [65, 184, 131]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-vue"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["package.json"]
+ignored_dirs = ["node_modules", "dist"]
+
+[semantics.resolver]
+alias_file = "package.json"
+alias_field = "name"
+source_root = "src"
+"#,
+r#"; Vue tags.scm
+; Vue SFC files contain template, script, and style sections
+
+(script_element) @definition.module
+
+(component
+  (start_tag
+    (tag_name) @name)) @reference.call
+"#),
+    ("yaml",
+r#"[plugin]
+name = "yaml"
+display_name = "YAML"
+version = "0.2.0"
+extensions = ["yaml", "yml"]
+min_sentrux_version = "0.4.0"
+color_rgb = [155, 50, 55]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[semantics]
+is_executable = false
+"#,
+r#"; YAML — display-only language, no structural analysis
 "#),
     ("zig",
 r#"[plugin]
