@@ -36,3 +36,12 @@
     (method_index_expression
       method: (identifier) @name)
   ]) @reference.call
+
+; ---- Import appendix (custom) ----
+
+; require("module")
+(function_call
+  name: (identifier) @_fn
+  arguments: (arguments
+    (string) @import.module)
+  (#eq? @_fn "require")) @import

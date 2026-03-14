@@ -60,3 +60,12 @@
   (#is-not? local)
   (#not-match? @name "^(lambda|load|require|require_relative|__FILE__|__LINE__)$")
 )
+
+; ---- Import appendix (custom) ----
+
+; require 'json' / require_relative './helper'
+(call
+  method: (identifier) @_method
+  arguments: (argument_list
+    (string) @import.module)
+  (#match? @_method "^(require|require_relative)$")) @import

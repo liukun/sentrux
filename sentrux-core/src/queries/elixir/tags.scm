@@ -38,8 +38,13 @@
   right: (identifier) @name) @reference.call
 
 ; ---- Import appendix (custom) ----
-; alias/import/use/require — capture the whole call as @import
-; so extract_elixir() can parse the keyword + module name from text.
+; alias/import/use/require with alias argument (PascalCase module)
 (call
   target: (identifier) @_import_kw
+  (arguments (alias) @import.module)
   (#any-of? @_import_kw "alias" "import" "use" "require")) @import
+
+; alias/import/use/require without alias (fallback — captures whole call)
+(call
+  target: (identifier) @_import_kw2
+  (#any-of? @_import_kw2 "alias" "import" "use" "require")) @import

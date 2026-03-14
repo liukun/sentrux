@@ -33,3 +33,12 @@
         rhs: (identifier) @name
     )
 ) @reference.call
+
+; ---- Import appendix (custom) ----
+
+; library("package") / require("package") / source("file.R")
+(call
+    function: (identifier) @_fn
+    arguments: (arguments
+        (string) @import.module)
+    (#match? @_fn "^(library|require|source)$")) @import
