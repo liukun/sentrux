@@ -450,9 +450,16 @@ capabilities = ["functions", "classes", "imports"]
             let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
             let mut installed = 0;
             let mut skipped = 0;
-            let registry_version = "0.2.0"; // Current plugin version
             for name in &standard {
                 let plugin_dir = dir.join(name);
+                // Read the expected version from embedded TOML data
+                let registry_version = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+                    .iter()
+                    .find(|&&(n, _, _)| n == *name)
+                    .and_then(|&(_, toml, _)| toml.lines()
+                        .find(|l| l.starts_with("version"))
+                        .and_then(|l| l.split('"').nth(1)))
+                    .unwrap_or("0.1.0");
                 if plugin_dir.exists() {
                     // Check if installed version matches registry — upgrade if outdated
                     let installed_ver = std::fs::read_to_string(plugin_dir.join("plugin.toml"))
@@ -469,7 +476,7 @@ capabilities = ["functions", "classes", "imports"]
                     let _ = std::fs::remove_dir_all(&plugin_dir);
                 }
                 let url = format!(
-                    "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
+                    "https://github.com/sentrux/plugins/releases/download/{name}-v{registry_version}/{name}-{platform_key}.tar.gz"
                 );
                 print!("  Installing {name}...");
                 let _ = std::io::Write::flush(&mut std::io::stdout());
@@ -511,8 +518,16 @@ capabilities = ["functions", "classes", "imports"]
             let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
             let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
 
+            // Read version from embedded plugin data if available
+            let version = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+                .iter()
+                .find(|&&(n, _, _)| n == name.as_str())
+                .and_then(|&(_, toml, _)| toml.lines()
+                    .find(|l| l.starts_with("version"))
+                    .and_then(|l| l.split('"').nth(1)))
+                .unwrap_or("0.1.0");
             let url = format!(
-                "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
+                "https://github.com/sentrux/plugins/releases/download/{name}-v{version}/{name}-{platform_key}.tar.gz"
             );
             println!("Downloading {name} plugin for {platform_key}...");
             println!("  {url}");
@@ -736,8 +751,16 @@ fn ensure_grammars_installed() {
         let plugin_dir = dir.join(name);
         let _ = std::fs::create_dir_all(plugin_dir.join("grammars"));
 
+        // Read version from plugin.toml (written by embedded sync)
+        let version = std::fs::read_to_string(plugin_dir.join("plugin.toml"))
+            .ok()
+            .and_then(|c| c.lines()
+                .find(|l| l.starts_with("version"))
+                .and_then(|l| l.split('"').nth(1))
+                .map(|v| v.to_string()))
+            .unwrap_or_else(|| "0.1.0".to_string());
         let url = format!(
-            "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
+            "https://github.com/sentrux/plugins/releases/download/{name}-v{version}/{name}-{platform_key}.tar.gz"
         );
         let tarball = dir.join(format!("{name}.tar.gz"));
 
