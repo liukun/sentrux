@@ -86,7 +86,8 @@ impl SentruxApp {
         self.state.evolution_report = reports.evolution;
         self.state.test_gap_report = reports.test_gaps;
         self.state.rule_check_result = reports.rules;
-        self.state.snapshot = Some(snap);
+        self.state.snapshot = Some(snap.clone());
+        self.state.lang_stats = crate::app::panels::language_summary::compute_lang_stats(&snap);
         self.state.scanning = false;
         self.state.rebuild_file_index();
         self.request_layout();

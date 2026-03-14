@@ -10,15 +10,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Per-language statistics aggregated from the snapshot.
-struct LangStat {
-    files: u32,
-    lines: u32,
-    funcs: u32,
-    import_edges: u32,
+pub(crate) struct LangStat {
+    pub files: u32,
+    pub lines: u32,
+    pub funcs: u32,
+    pub import_edges: u32,
 }
 
-/// Aggregate per-language stats from snapshot.
-fn compute_lang_stats(snap: &Snapshot) -> Vec<(String, LangStat)> {
+/// Aggregate per-language stats from snapshot. Called once per scan, cached.
+pub(crate) fn compute_lang_stats(snap: &Snapshot) -> Vec<(String, LangStat)> {
     let files = crate::core::snapshot::flatten_files_ref(&snap.root);
     let mut stats: HashMap<String, LangStat> = HashMap::new();
 
@@ -44,14 +44,16 @@ fn compute_lang_stats(snap: &Snapshot) -> Vec<(String, LangStat)> {
     }
 
     let mut sorted: Vec<(String, LangStat)> = stats.into_iter().collect();
-    sorted.sort_by(|a, b| b.1.files.cmp(&a.1.files));
+    sorted.sort_by(|a, b| b.1.files.cmp(&a.1.files).then_with(|| a.0.cmp(&b.0)));
     sorted
 }
 
 /// Draw the language & plugin summary section.
+/// `lang_stats` should be pre-computed and cached (call `compute_lang_stats` once per scan).
 pub(crate) fn draw_language_summary(
     ui: &mut egui::Ui,
     snap: &Arc<Snapshot>,
+    lang_stats: &[(String, LangStat)],
     tc: &ThemeConfig,
 ) {
     let row_h = 13.0;
@@ -67,7 +69,6 @@ pub(crate) fn draw_language_summary(
 
     // Plugin count
     let total_plugins = lang_registry::plugin_count();
-    let lang_stats = compute_lang_stats(snap);
     let langs_used = lang_stats.len();
 
     let (rect, _) = ui.allocate_exact_size(
@@ -145,7 +146,7 @@ pub(crate) fn draw_language_summary(
     ui.add_space(4.0);
 
     // Per-language breakdown
-    for (lang, stat) in &lang_stats {
+    for (lang, stat) in lang_stats {
         let profile = lang_registry::profile(lang);
         let color = egui::Color32::from_rgb(
             profile.color_rgb[0], profile.color_rgb[1], profile.color_rgb[2],

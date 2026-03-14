@@ -157,6 +157,9 @@ pub struct AppState {
     /// Cached top connected files, keyed by (rendered_version, edge_filter) to avoid O(E) per-frame rebuild
     pub top_connections_cache: Option<(u64, u8, Vec<(String, usize)>)>,
 
+    // ── Language stats (cached per scan) ──
+    pub lang_stats: Vec<(String, crate::app::panels::language_summary::LangStat)>,
+
     // ── Health metrics ──
     /// Code health report — recomputed on each ScanMsg::Complete
     pub health_report: Option<HealthReport>,
@@ -275,6 +278,7 @@ impl AppState {
             dsm_panel_open: false,
             dsm_cache: None,
             top_connections_cache: None,
+            lang_stats: Vec::new(),
             health_report: None,
             arch_report: None,
             evolution_report: None,

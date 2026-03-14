@@ -54,7 +54,7 @@ fn draw_metrics_sections(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConf
 
     // Language summary: always visible when snapshot exists
     if let Some(snap) = &state.snapshot {
-        draw_language_summary(ui, snap, tc);
+        draw_language_summary(ui, snap, &state.lang_stats, tc);
         draw_sep(ui, tc, 4.0);
     }
 
