@@ -3312,11 +3312,6 @@ color_rgb = [80, 130, 200]
 author = "sentrux"
 license = "MIT"
 
-[grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-v"
-ref = "main"
-abi_version = 14
-
 [queries]
 capabilities = ["functions", "classes", "imports"]
 
