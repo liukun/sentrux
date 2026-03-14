@@ -4,6 +4,7 @@
 //! Results are cached (LRU, 2000 entries) by content hash to skip reparsing
 //! unchanged files during incremental rescan. Thread-safe via Mutex + thread-local parsers.
 
+mod ast_import_walker;
 mod captures;
 pub mod imports;
 mod lang_extractors;
@@ -13,6 +14,8 @@ mod strings;
 mod tests;
 #[cfg(test)]
 mod tests2;
+#[cfg(test)]
+mod ast_import_test;
 
 
 use super::lang_registry;

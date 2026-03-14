@@ -326,6 +326,18 @@ pub(super) fn process_import(
     } else if let Some(module) = &ictx.name_text {
         insert_normalized(module, dots_are_seps, imports, import_set);
     } else if let Some(node) = ictx.import_node.or(ictx.match_node) {
-        extract_and_insert_imports(node, content, lang, imports, import_set);
+        let profile = crate::analysis::lang_registry::profile(lang);
+        if profile.semantics.import_ast.is_configured() {
+            // AST-based: walk tree-sitter nodes directly (no text re-parsing)
+            let paths = super::ast_import_walker::extract_imports_from_ast(
+                node, content, &profile.semantics.import_ast,
+            );
+            for raw in paths {
+                insert_normalized(&raw, dots_are_seps, imports, import_set);
+            }
+        } else {
+            // Legacy fallback: text-based extraction
+            extract_and_insert_imports(node, content, lang, imports, import_set);
+        }
     }
 }

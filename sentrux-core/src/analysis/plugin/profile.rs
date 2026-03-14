@@ -107,6 +107,14 @@ pub struct LanguageSemantics {
     /// Examples: `["test_"]` for Python.
     pub test_prefixes: Vec<String>,
 
+    // ── Import extraction (AST-based) ──
+
+    /// AST-based import path extraction configuration.
+    /// When configured, the platform reads module paths directly from tree-sitter
+    /// AST nodes instead of re-parsing text with compiled extractors.
+    #[serde(default)]
+    pub import_ast: ImportAstConfig,
+
     // ── Complexity (AST-based) ──
 
     /// AST node kinds for complexity counting.
@@ -119,6 +127,100 @@ pub struct LanguageSemantics {
     /// Used when complexity.branch_nodes is empty (plugin hasn't been updated yet).
     #[serde(default, rename = "complexity_keywords")]
     pub complexity_keywords_legacy: Option<ComplexityKeywordsLegacy>,
+}
+
+/// AST-based import path extraction configuration.
+///
+/// Tells the generic AST walker HOW to find module paths in tree-sitter import nodes.
+/// Two strategies:
+///   - `field_read`: read a field/child of the import node (Python, Go, JS, C, Ruby)
+///   - `scoped_path`: concatenate scoped identifier chains (Rust, Java)
+///
+/// When `strategy` is empty, falls back to legacy text-based extractors.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ImportAstConfig {
+    /// Extraction strategy: "field_read", "scoped_path", or "" (legacy fallback).
+    pub strategy: String,
+
+    // ── field_read strategy ──
+
+    /// Field name on the import node that contains the module path.
+    /// Python: "module_name", Go: "path", JS: "source", C: "path".
+    pub module_path_field: String,
+
+    /// Node kinds that can appear at the module path position.
+    /// Walker tries these in order when the field lookup fails.
+    /// Python: ["dotted_name", "relative_import"], Go: ["interpreted_string_literal"].
+    pub module_path_node_kinds: Vec<String>,
+
+    /// If the path is inside a string literal, what child node holds the raw content.
+    /// Go: "interpreted_string_literal_content", JS: "string_fragment", C: "string_content".
+    /// Empty = read node text directly (no string unwrapping).
+    pub string_content_kind: String,
+
+    /// If the import node is a container (Go import_declaration), what child kind
+    /// holds individual import specs. The walker iterates these children.
+    /// Go: "import_spec". Empty = import node itself contains the path.
+    pub child_import_kind: String,
+
+    // ── scoped_path strategy ──
+
+    /// Separator for joining scoped path segments. Rust: "::", Java: ".".
+    pub path_separator: String,
+
+    /// Node kind for branching use lists. Rust: "use_list".
+    pub use_list_kind: String,
+
+    /// Node kinds for scoped path nodes. Rust: ["scoped_identifier", "scoped_use_list"].
+    pub scoped_path_kinds: Vec<String>,
+
+    // ── Python relative imports ──
+
+    /// Node kind that indicates a relative import. Python: "relative_import".
+    pub relative_import_kind: String,
+
+    /// Child node kind that holds the dots. Python: "import_prefix".
+    pub import_prefix_kind: String,
+
+    // ── Post-processing ──
+
+    /// Transform applied to extracted module names.
+    /// "pascal_to_snake" for Elixir. Empty = no transform.
+    pub module_name_transform: String,
+
+    /// Whether to filter out system includes. C/C++: true.
+    pub filter_system_includes: bool,
+
+    /// Node kind for system includes to filter. C: "system_lib_string".
+    pub system_include_kind: String,
+}
+
+impl Default for ImportAstConfig {
+    fn default() -> Self {
+        Self {
+            strategy: String::new(),
+            module_path_field: String::new(),
+            module_path_node_kinds: Vec::new(),
+            string_content_kind: String::new(),
+            child_import_kind: String::new(),
+            path_separator: String::new(),
+            use_list_kind: String::new(),
+            scoped_path_kinds: Vec::new(),
+            relative_import_kind: String::new(),
+            import_prefix_kind: String::new(),
+            module_name_transform: String::new(),
+            filter_system_includes: false,
+            system_include_kind: String::new(),
+        }
+    }
+}
+
+impl ImportAstConfig {
+    /// Whether this profile has AST-based import extraction configured.
+    pub fn is_configured(&self) -> bool {
+        !self.strategy.is_empty()
+    }
 }
 
 /// AST node kinds for complexity counting via tree-sitter AST walk.
@@ -280,6 +382,7 @@ impl Default for LanguageSemantics {
             import_extractor: "fallback".into(),
             base_class_extractor: "generic".into(),
             base_class_node_kinds: Vec::new(),
+            import_ast: ImportAstConfig::default(),
             hash_is_comment: false,
             has_triple_quote_strings: false,
             package_index_files: Vec::new(),

@@ -253,6 +253,16 @@ pub(super) fn extract_jvm_like(text: &str) -> Vec<String> {
     if s.is_empty() { vec![] } else { vec![s] }
 }
 
+/// Convert a dot-separated PascalCase module path to snake_case file path.
+/// "Collect.Listing" → "collect/listing", "GenServer" → "gen_server"
+pub(super) fn pascal_to_snake_path(module: &str) -> String {
+    module
+        .split('.')
+        .map(|s| pascal_to_snake(s))
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 /// Convert a PascalCase string to snake_case.
 /// Examples: "GenServer" → "gen_server", "HTTPClient" → "http_client", "IO" → "io"
 fn pascal_to_snake(s: &str) -> String {
