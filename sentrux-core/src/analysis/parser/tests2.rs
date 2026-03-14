@@ -412,4 +412,38 @@ class Bar:
             assert_eq!(f1.el, f2.el);
         }
     }
+
+    // ---- Verify all new language queries extract names (not flat captures) ----
+
+    #[test]
+    fn new_langs_extract_names() {
+        let cases: &[(&str, &[u8], &str)] = &[
+            ("nim", b"proc hello(name: string) =\n  echo name\ntype Cat = object\n  name: string\nimport strutils\n", "hello"),
+            ("julia", b"function greet(name)\n  println(name)\nend\nstruct Point\n  x::Float64\nend\nimport LinearAlgebra\n", "greet"),
+            ("groovy", b"def hello(name) {\n  println name\n}\nclass Cat {\n}\nimport groovy.json.JsonSlurper\n", "hello"),
+            ("powershell", b"function Get-Hello {\n  param($Name)\n}\nclass Animal { }\n", "Get-Hello"),
+            ("fsharp", b"let greet name = printfn name\ntype Cat = { Name: string }\nopen System\n", "greet"),
+            ("solidity", b"pragma solidity ^0.8.0;\nimport \"./Ownable.sol\";\ncontract Token {\n  function transfer() public {}\n}\n", "transfer"),
+            ("dart", b"void greet(String name) {\n  print(name);\n}\nclass Cat {\n}\n", "greet"),
+            ("ocaml", b"let greet name = print_string name\nmodule M = struct end\nopen List\n", "greet"),
+            ("perl", b"package MyModule;\nuse strict;\nsub hello {\n  print \"hi\";\n}\n1;\n", "hello"),
+            ("erlang", b"-module(mymod).\n-import(lists, [map/2]).\nhello(Name) -> ok.\n", "hello"),
+            ("kotlin", b"import kotlin.collections.List\nfun greet(name: String) {\n  println(name)\n}\nclass Cat\n", "greet"),
+            ("protobuf", b"syntax = \"proto3\";\nimport \"other.proto\";\nmessage Person {\n  string name = 1;\n}\n", "Person"),
+        ];
+
+        for &(lang, code, expected_name) in cases {
+            let sa = match parse_bytes(code, lang) {
+                Some(sa) => sa,
+                None => { eprintln!("[{}] parse_bytes returned None — grammar not loaded", lang); continue; }
+            };
+            // Check that at least one function or class has the expected name
+            let has_name = sa.functions.as_ref().map_or(false, |fns| fns.iter().any(|f| f.n == expected_name))
+                || sa.cls.as_ref().map_or(false, |cls| cls.iter().any(|c| c.n == expected_name));
+            assert!(has_name, "[{}] expected name '{}' not found. functions={:?}, classes={:?}",
+                lang, expected_name,
+                sa.functions.as_ref().map(|f| f.iter().map(|x| x.n.as_str()).collect::<Vec<_>>()),
+                sa.cls.as_ref().map(|c| c.iter().map(|x| x.n.as_str()).collect::<Vec<_>>()));
+        }
+    }
 }

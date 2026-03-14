@@ -158,6 +158,47 @@ require Logger
 
     #[test]
     #[ignore]
+    fn ast_all_langs_dump() {
+        let samples: &[(&str, &str)] = &[
+            ("nim", "proc hello(name: string) =\n  echo name\ntype Cat = object\n  name: string\nimport strutils\nfrom os import joinPath\n"),
+            ("julia", "function greet(name)\n  println(name)\nend\nstruct Point\n  x::Float64\nend\nimport LinearAlgebra\nusing Base: push!\n"),
+            ("groovy", "def hello(name) {\n  println name\n}\nclass Cat {\n  String name\n}\nimport groovy.json.JsonSlurper\n"),
+            ("powershell", "function Get-Hello {\n  param($Name)\n  Write-Host $Name\n}\nclass Animal {\n  [string]$Name\n}\n"),
+            ("fsharp", "let greet name = printfn name\ntype Cat = { Name: string }\nmodule MyMod =\n  let x = 1\nopen System\n"),
+            ("solidity", "pragma solidity ^0.8.0;\nimport \"./Ownable.sol\";\ncontract Token {\n  function transfer(address to) public {}\n}\n"),
+            ("dart", "void greet(String name) {\n  print(name);\n}\nclass Cat {\n  String name;\n}\nimport 'dart:io';\n"),
+            ("nix", "{ pkgs }:\nlet\n  hello = name: \"hello ${name}\";\nin\n  pkgs.mkShell { }\n"),
+            ("objective-c", "#import <Foundation/Foundation.h>\n#import \"MyClass.h\"\n@interface Cat : NSObject\n@end\nvoid hello() {}\n"),
+            ("ocaml", "let greet name = print_string name\nmodule M = struct end\ntype cat = { name: string }\nopen List\n"),
+            ("perl", "package MyModule;\nuse strict;\nuse warnings;\nsub hello {\n  my $name = shift;\n  print $name;\n}\n1;\n"),
+            ("erlang", "-module(mymod).\n-export([hello/1]).\n-import(lists, [map/2]).\nhello(Name) -> io:format(Name).\n"),
+            ("kotlin", "package com.example\nimport kotlin.collections.List\nfun greet(name: String) {\n  println(name)\n}\nclass Cat(val name: String)\ninterface Animal\n"),
+            ("protobuf", "syntax = \"proto3\";\nimport \"other.proto\";\nmessage Person {\n  string name = 1;\n}\nservice Greeter {\n  rpc Hello (Person) returns (Person);\n}\n"),
+            ("svelte", "<script>\nimport { onMount } from 'svelte';\nfunction hello() {}\n</script>\n<h1>Hello</h1>\n"),
+            ("vue", "<template><div>Hello</div></template>\n<script>\nimport axios from 'axios';\nexport default {\n  methods: { hello() {} }\n}\n</script>\n"),
+        ];
+        let mut parser = tree_sitter::Parser::new();
+        for &(lang, source) in samples {
+            println!("\n{}", "=".repeat(72));
+            println!("[{}]", lang);
+            println!("{}", "=".repeat(72));
+            let config = match lang_registry::get(lang) {
+                Some(c) => c,
+                None => { println!("SKIPPED — not loaded"); continue; }
+            };
+            if let Err(e) = parser.set_language(&config.grammar) {
+                println!("ERROR: {}", e); continue;
+            }
+            let tree = match parser.parse(source.as_bytes(), None) {
+                Some(t) => t,
+                None => { println!("parse returned None"); continue; }
+            };
+            print_tree(tree.root_node(), source.as_bytes(), lang, 0, None);
+        }
+    }
+
+    #[test]
+    #[ignore]
     fn ast_import_dump() {
         let mut parser = Parser::new();
         let mut found_any = false;

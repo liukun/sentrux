@@ -590,11 +590,21 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement"]
 "#,
-r#"(function_signature) @definition.function
-(method_signature) @definition.function
-(class_definition) @definition.class
-(enum_declaration) @definition.class
-(mixin_declaration) @definition.class
+r#"; Dart tags.scm — verified against actual AST
+
+; functions
+(function_signature
+  name: (identifier) @name) @definition.function
+
+; classes
+(class_definition
+  name: (identifier) @name) @definition.class
+
+; enum
+(enum_declaration
+  name: (identifier) @name) @definition.class
+
+; imports — dart grammar may parse these as library_import or ERROR
 (library_import) @import
 (library_export) @import
 "#),
@@ -767,16 +777,20 @@ logic_nodes = []
 logic_operators = ["andalso", "orelse"]
 nesting_nodes = ["if_expr", "case_expr", "receive_expr", "try_expr"]
 "#,
-r#"; Erlang tags.scm
+r#"; Erlang tags.scm — verified against actual AST
 
+; functions: fun_decl → function_clause → atom field:name
 (fun_decl
-  (function_clause
+  clause: (function_clause
     name: (atom) @name)) @definition.function
 
+; module attribute
 (module_attribute
   name: (atom) @name) @definition.module
 
-(import_attribute) @import
+; imports: import_attribute → atom field:module
+(import_attribute
+  module: (atom) @import.module) @import
 "#),
     ("fsharp",
 r##"[plugin]
@@ -820,10 +834,26 @@ logic_nodes = ["infix_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
 "##,
-r#"(function_or_value_defn) @definition.function
-(type_definition) @definition.class
-(module_defn) @definition.module
-(import_decl) @import
+r#"; F# tags.scm — verified against actual AST
+
+; functions: function_or_value_defn → function_declaration_left → identifier
+(function_or_value_defn
+  (function_declaration_left
+    (identifier) @name)) @definition.function
+
+; types: type_definition → record_type_defn → type_name → identifier
+(type_definition
+  (record_type_defn
+    (type_name
+      (identifier) @name))) @definition.class
+
+; modules: module_defn → identifier
+(module_defn
+  (identifier) @name) @definition.module
+
+; imports: import_decl → long_identifier
+(import_decl
+  (long_identifier) @import.module) @import
 "#),
     ("gdscript",
 r#"[plugin]
@@ -1060,10 +1090,22 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement", "switch_statement"]
 "#,
-r#"(function_definition) @definition.function
-(function_declaration) @definition.function
-(class_definition) @definition.class
-(groovy_import) @import
+r#"; Groovy tags.scm — verified against actual AST
+
+; functions: function_definition → identifier field:function
+(function_definition
+  function: (identifier) @name) @definition.function
+
+(function_declaration
+  function: (identifier) @name) @definition.function
+
+; classes: class_definition → identifier field:name
+(class_definition
+  name: (identifier) @name) @definition.class
+
+; imports: groovy_import → qualified_name field:import
+(groovy_import
+  import: (qualified_name) @import.module) @import
 "#),
     ("haskell",
 r#"[plugin]
@@ -1556,12 +1598,31 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement", "try_statement"]
 "#,
-r#"(function_definition) @definition.function
+r#"; Julia tags.scm — verified against actual AST
+
+; functions: function_definition → signature → call_expression → identifier
+(function_definition
+  (signature
+    (call_expression
+      (identifier) @name))) @definition.function
+
+; macros
 (macro_definition) @definition.function
-(struct_definition) @definition.class
+
+; structs: struct_definition → type_head → identifier
+(struct_definition
+  (type_head
+    (identifier) @name)) @definition.class
+
+; abstract types
 (abstract_definition) @definition.class
+
+; modules
 (module_definition) @definition.module
-(import_statement) @import
+
+; imports
+(import_statement
+  (identifier) @import.module) @import
 (using_statement) @import
 "#),
     ("kotlin",
@@ -1604,17 +1665,17 @@ logic_nodes = ["conjunction_expression", "disjunction_expression"]
 logic_operators = []
 nesting_nodes = ["if_expression", "for_statement", "while_statement", "do_while_statement", "when_expression"]
 "#,
-r#"; Kotlin tags.scm
+r#"; Kotlin tags.scm — verified against actual AST
 
+; functions: function_declaration → simple_identifier (child, no field)
 (function_declaration
   (simple_identifier) @name) @definition.function
 
+; classes: class_declaration → type_identifier (child)
 (class_declaration
   (type_identifier) @name) @definition.class
 
-(object_declaration
-  (type_identifier) @name) @definition.class
-
+; imports: import_header → identifier (child with dotted path)
 (import_header
   (identifier) @import.module) @import
 "#),
@@ -1768,12 +1829,20 @@ logic_nodes = ["infix_expression"]
 logic_operators = ["and", "or"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement", "case_statement", "try_statement"]
 "#,
-r#"(routine) @definition.function
-(typeDef) @definition.class
-(objectDecl) @definition.class
-(enumDecl) @definition.class
+r#"; Nim tags.scm — verified against actual AST
+
+; functions: routine → symbol → ident
+(routine
+  (symbol
+    (ident) @name)) @definition.function
+
+; types: typeDef → symbol → ident
+(typeDef
+  (symbol
+    (ident) @name)) @definition.class
+
+; imports: importStmt text contains the module path
 (importStmt) @import
-(importExceptStmt) @import
 (fromStmt) @import
 (includeStmt) @import
 "#),
@@ -1805,8 +1874,14 @@ is_executable = false
 hash_is_comment = true
 import_extractor = ""
 "#,
-r#"(binding) @definition.function
-(inherit) @definition.function
+r#"; Nix tags.scm — verified against actual AST
+
+; bindings (nix "functions" are let bindings)
+(binding
+  attrpath: (attrpath
+    (identifier) @name)) @definition.function
+
+; with expression (brings external scope into scope)
 (with_expression) @import
 "#),
     ("objective-c",
@@ -1848,15 +1923,27 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement"]
 "#,
-r#"; Objective-C tags.scm
+r#"; Objective-C tags.scm — verified against actual AST
 
-(function_definition) @definition.function
+; functions: function_definition → function_declarator → identifier
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @name)) @definition.function
+
+; methods (captured without name extraction — ObjC method names are complex)
 (method_declaration) @definition.function
-(class_interface) @definition.class
-(protocol_declaration) @definition.interface
 
-; #import and #include
-(preproc_include) @import
+; classes: class_interface → identifier (direct child, no field name)
+(class_interface
+  (identifier) @name) @definition.class
+
+; protocols
+(protocol_declaration
+  (identifier) @name) @definition.interface
+
+; imports: preproc_include with field:path
+(preproc_include
+  path: (_) @import.module) @import
 "#),
     ("ocaml",
 r#"[plugin]
@@ -1896,24 +1983,27 @@ logic_nodes = ["infix_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_expression", "match_expression", "for_expression", "while_expression", "try_expression"]
 "#,
-r#"; OCaml tags.scm
+r#"; OCaml tags.scm — verified against actual AST
 
+; functions: value_definition → let_binding → value_name field:pattern
 (value_definition
   (let_binding
     pattern: (value_name) @name)) @definition.function
 
+; types: type_definition → type_binding → type_constructor field:name
 (type_definition
   (type_binding
     name: (type_constructor) @name)) @definition.class
 
+; modules: module_definition → module_binding → module_name
 (module_definition
   (module_binding
     (module_name) @name)) @definition.module
 
-; ---- Import appendix ----
-
+; imports: open_module → module_path field:module → module_name
 (open_module
-  (module_path) @import.module) @import
+  module: (module_path
+    (module_name) @import.module)) @import
 "#),
     ("perl",
 r#"[plugin]
@@ -1953,20 +2043,21 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["&&", "||", "and", "or"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement", "unless_statement"]
 "#,
-r#"; Perl tags.scm
+r#"; Perl tags.scm — verified against actual AST
 
+; functions: subroutine_declaration_statement → bareword field:name
 (subroutine_declaration_statement
   name: (bareword) @name) @definition.function
 
-(method_declaration_statement
-  name: (bareword) @name) @definition.function
-
+; packages (as classes)
 (package_statement
   name: (package) @name) @definition.class
 
+; imports: use_statement → package field:module
 (use_statement
   module: (package) @import.module) @import
 
+; require
 (require_expression) @import
 "#),
     ("php",
@@ -2117,9 +2208,19 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["-and", "-or"]
 nesting_nodes = ["if_statement", "for_statement", "foreach_statement", "while_statement", "switch_statement"]
 "#,
-r#"(function_statement) @definition.function
-(class_statement) @definition.class
-(enum_statement) @definition.class
+r#"; PowerShell tags.scm — verified against actual AST
+
+; functions: function_statement → function_name
+(function_statement
+  (function_name) @name) @definition.function
+
+; classes: class_statement → simple_name
+(class_statement
+  (simple_name) @name) @definition.class
+
+; enums
+(enum_statement
+  (simple_name) @name) @definition.class
 "#),
     ("protobuf",
 r#"[plugin]
@@ -2148,20 +2249,24 @@ capabilities = ["classes", "imports"]
 is_executable = false
 import_extractor = ""
 "#,
-r#"; Protocol Buffers tags.scm
+r#"; Protobuf tags.scm — verified against actual AST
 
+; messages
 (message
-  (messageName) @name) @definition.class
+  (messageName
+    (ident) @name)) @definition.class
 
-(enum
-  (enumName) @name) @definition.class
-
+; services
 (service
-  (serviceName) @name) @definition.class
+  (serviceName
+    (ident) @name)) @definition.class
 
+; RPCs
 (rpc
-  (rpcName) @name) @definition.function
+  (rpcName
+    (ident) @name)) @definition.function
 
+; imports: import → strLit
 (import
   (strLit) @import.module) @import
 "#),
@@ -2783,13 +2888,19 @@ logic_nodes = ["binary_expression"]
 logic_operators = ["&&", "||"]
 nesting_nodes = ["if_statement", "for_statement", "while_statement"]
 "#,
-r#"(function_definition) @definition.function
-(contract_declaration) @definition.class
-(interface_declaration) @definition.interface
-(library_declaration) @definition.module
-(struct_declaration) @definition.class
-(event_definition) @definition.function
-(import_directive) @import
+r#"; Solidity tags.scm — verified against actual AST
+
+; functions
+(function_definition
+  name: (identifier) @name) @definition.function
+
+; contracts
+(contract_declaration
+  name: (identifier) @name) @definition.class
+
+; imports: import_directive → string field:source
+(import_directive
+  source: (string) @import.module) @import
 "#),
     ("sql",
 r#"[plugin]
@@ -2838,7 +2949,7 @@ ref = "master"
 abi_version = 14
 
 [queries]
-capabilities = ["functions", "imports"]
+capabilities = ["functions"]
 
 [checksums]
 
@@ -3229,7 +3340,7 @@ ref = "master"
 abi_version = 14
 
 [queries]
-capabilities = ["functions", "imports"]
+capabilities = ["functions"]
 
 [checksums]
 
