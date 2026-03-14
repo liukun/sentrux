@@ -288,10 +288,11 @@ main = putStrLn (greet "World")
         let sa = parse_bytes(code, "haskell").expect("haskell parse failed");
         let fns = sa.functions.as_ref().expect("no functions");
         assert!(fns.len() >= 1, "expected at least 1 function, got {:?}", fns);
-        // Classes: grammar version may not expose data/class as named nodes
-        // so we don't assert on cls count — just check imports work
+        let cls = sa.cls.as_ref().expect("no classes");
+        // Color (data_type) + Printable (class) + Name (newtype) = 3
+        assert!(cls.len() >= 2, "expected at least 2 class-like items, got {:?}", cls);
         let imp = sa.imp.as_ref().expect("no imports");
-        assert!(imp.len() >= 2, "expected at least 2 imports, got {:?}", imp);
+        assert!(imp.len() >= 1, "expected at least 1 import, got {:?}", imp);
     }
 
     #[test]

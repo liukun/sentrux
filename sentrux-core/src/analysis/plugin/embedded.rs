@@ -1133,7 +1133,7 @@ ref = "master"
 abi_version = 14
 
 [queries]
-capabilities = ["functions", "imports"]
+capabilities = ["functions", "classes", "imports"]
 
 [checksums]
 
@@ -1150,10 +1150,29 @@ logic_nodes = []
 logic_operators = []
 nesting_nodes = ["case", "lambda", "do", "list_comprehension"]
 "#,
-r#"(declarations
+r#"; Haskell tags.scm — verified against actual AST (data/class/newtype/function)
+
+; functions
+(declarations
   (function
     name: (variable) @name) @definition.function)
 
+; data types: data Color = Red | Green | Blue
+(declarations
+  (data_type
+    name: (_) @name) @definition.class)
+
+; newtypes: newtype Name = Name String
+(declarations
+  (newtype
+    name: (_) @name) @definition.class)
+
+; type classes: class Printable a where ...
+(declarations
+  (class
+    name: (_) @name) @definition.class)
+
+; imports
 (imports
   (import
     module: (module) @import.module) @import)
@@ -1846,13 +1865,22 @@ import_extractor = ""
 "#,
 r#"; Nix tags.scm — verified against actual AST
 
-; bindings (nix functions are let bindings)
+; bindings (nix functions/values)
 (binding
   attrpath: (attrpath
     (identifier) @name)) @definition.function
 
-; with expression brings external attrs into scope
-(with_expression) @import
+; imports: import ./path.nix → apply_expression(function: "import", argument: path)
+(apply_expression
+  function: (variable_expression) @_fn
+  argument: (path_expression) @import.module
+  (#eq? @_fn "import")) @import
+
+; import <nixpkgs> → path in angle brackets
+(apply_expression
+  function: (variable_expression) @_fn2
+  argument: (_) @import.module
+  (#eq? @_fn2 "import")) @import
 "#),
     ("objective-c",
 r#"[plugin]

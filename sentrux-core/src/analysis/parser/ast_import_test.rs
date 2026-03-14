@@ -162,7 +162,7 @@ require Logger
         let samples: &[(&str, &str)] = &[
             ("bash", "#!/bin/bash\nmy_func() {\n  echo hello\n}\nsource ./utils.sh\n. ./helper.sh\n"),
             ("gdscript", "func greet(name):\n  print(name)\nclass_name Cat\n"),
-            ("haskell", "module Main where\nimport Data.List\ngreet :: String -> String\ngreet name = name\n"),
+            ("haskell", "module Main where\nimport Data.List\ndata Color = Red | Green | Blue\nclass Printable a where\n  display :: a -> String\nnewtype Name = Name String\ngreet name = name\n"),
             ("scala", "package com.example\nimport scala.collection.mutable\ndef greet(name: String): Unit = println(name)\nclass Cat\n"),
             ("zig", "const std = @import(\"std\");\nfn hello(name: []const u8) void {\n  _ = name;\n}\n"),
             ("html", "<html><head><link rel=\"stylesheet\" href=\"style.css\"></head><body></body></html>\n"),
@@ -173,7 +173,7 @@ require Logger
             ("fsharp", "let greet name = printfn name\ntype Cat = { Name: string }\nmodule MyMod =\n  let x = 1\nopen System\n"),
             ("solidity", "pragma solidity ^0.8.0;\nimport \"./Ownable.sol\";\ncontract Token {\n  function transfer(address to) public {}\n}\n"),
             ("dart", "void greet(String name) {\n  print(name);\n}\nclass Cat {\n  String name;\n}\nimport 'dart:io';\n"),
-            ("nix", "{ pkgs }:\nlet\n  hello = name: \"hello ${name}\";\nin\n  pkgs.mkShell { }\n"),
+            ("nix", "{ pkgs }:\nlet\n  utils = import ./utils.nix;\n  hello = name: \"hello\";\nin\n  hello pkgs\n"),
             ("objective-c", "#import <Foundation/Foundation.h>\n#import \"MyClass.h\"\n@interface Cat : NSObject\n@end\nvoid hello() {}\n"),
             ("ocaml", "let greet name = print_string name\nmodule M = struct end\ntype cat = { name: string }\nopen List\n"),
             ("perl", "package MyModule;\nuse strict;\nuse warnings;\nsub hello {\n  my $name = shift;\n  print $name;\n}\n1;\n"),
