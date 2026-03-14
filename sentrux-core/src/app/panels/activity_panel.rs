@@ -262,6 +262,20 @@ pub fn draw_activity_panel(ctx: &egui::Context, state: &mut AppState) -> bool {
         .show(ctx, |ui| {
             draw_panel_header(ui, state, &tc);
 
+            // File detail section: shows metrics for the selected file
+            if state.selected_path.is_some() {
+                if let Some(snap) = &state.snapshot {
+                    let snap_clone = snap.clone();
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            super::file_detail::draw_file_detail(ui, state, &snap_clone, &tc);
+                        });
+                    // Skip the rest of the panel when file detail is shown
+                    return;
+                }
+            }
+
             // Rebuild cache if stale, then temporarily take the vec to avoid
             // cloning every frame while still satisfying the borrow checker
             // (draw_top_connections needs &mut AppState).

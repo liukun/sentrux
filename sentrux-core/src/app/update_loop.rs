@@ -117,8 +117,13 @@ impl eframe::App for SentruxApp {
 
 /// Private helpers extracted from `update()` to keep each method ≤50 lines.
 impl SentruxApp {
-    /// Check if root_path changed and start a scan if needed. [ref:bf6756ac] [ref:93cf32d4]
+    /// Check if root_path changed or rescan requested. [ref:bf6756ac] [ref:93cf32d4]
     fn maybe_start_scan(&mut self) {
+        // Manual rescan: force re-scan of current project
+        if self.state.rescan_requested {
+            self.state.rescan_requested = false;
+            self.last_scanned_root = None; // Force re-scan
+        }
         if self.state.root_path == self.last_scanned_root || self.state.root_path.is_none() {
             return;
         }

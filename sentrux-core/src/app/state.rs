@@ -180,6 +180,10 @@ pub struct AppState {
     /// The app handles the actual dialog on a background thread to avoid
     /// blocking the UI (especially on Linux where rfd blocks the event loop).
     pub folder_picker_requested: bool,
+    /// Flag set by toolbar Rescan button — triggers re-scan of current project.
+    pub rescan_requested: bool,
+    /// Search query for file filtering.
+    pub search_query: String,
 
     // ── Context menu / hide ──
     /// Paths hidden by the user (files or directory prefixes). Files whose path
@@ -287,6 +291,8 @@ impl AppState {
             whatif_cache: None,
             impact_files: None,
             folder_picker_requested: false,
+            rescan_requested: false,
+            search_query: String::new(),
             hidden_paths: Arc::new(HashSet::new()),
             context_menu_target: None,
         }

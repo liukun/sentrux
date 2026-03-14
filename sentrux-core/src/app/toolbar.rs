@@ -36,6 +36,21 @@ pub fn draw_toolbar(ui: &mut egui::Ui, state: &mut AppState) -> (bool, bool) {
         ui.separator();
         ui.add_space(2.0);
 
+        // Search box
+        let search_response = ui.add(
+            egui::TextEdit::singleline(&mut state.search_query)
+                .desired_width(120.0)
+                .hint_text("Search files...")
+                .font(egui::FontId::monospace(9.0))
+        );
+        if search_response.changed() {
+            visual_changed = true;
+        }
+
+        ui.add_space(2.0);
+        ui.separator();
+        ui.add_space(2.0);
+
         draw_filter_group(ui, state, &mut layout_changed, &mut visual_changed);
 
         draw_scan_progress(ui, state);
@@ -44,11 +59,16 @@ pub fn draw_toolbar(ui: &mut egui::Ui, state: &mut AppState) -> (bool, bool) {
     (layout_changed, visual_changed)
 }
 
-/// Open folder button — sets a flag for app.rs to handle on a background
-/// thread, avoiding blocking the UI event loop.
+/// Primary actions: Open Folder + Rescan.
 fn draw_open_folder(ui: &mut egui::Ui, state: &mut AppState) {
     if ui.button("Open Folder").clicked() {
         state.folder_picker_requested = true;
+    }
+    // Rescan button — manual trigger for re-scanning current project
+    if state.root_path.is_some() && !state.scanning {
+        if ui.button("\u{21bb}").on_hover_text("Rescan (Cmd+R)").clicked() {
+            state.rescan_requested = true;
+        }
     }
 }
 
