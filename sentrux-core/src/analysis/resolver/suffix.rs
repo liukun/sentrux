@@ -78,10 +78,8 @@ static MANIFEST_FILES: std::sync::LazyLock<Vec<String>> =
             .collect()
     });
 
-/// Tier 1 + Tier 2 synchronous import resolution (zero-copy: accepts &[&FileNode]).
-/// Tier 1: oxc_resolver for JS/TS/JSX/TSX -- accurate module resolution.
-/// Tier 2: suffix-index + file-path join for everything else.
-/// Returns empty if scan_root is None.
+/// Unified import resolution for ALL languages via suffix-index.
+/// No tier split — JS/TS goes through the same resolver with path alias support.
 pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&Path>) -> Vec<ImportEdge> {
     let t0 = std::time::Instant::now();
     let scan_root = match scan_root {
@@ -89,64 +87,32 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
         None => return Vec::new(),
     };
 
-    // Build known_files ONCE -- shared by oxc resolver and suffix resolver
     let known_files: HashSet<&str> = files
         .iter()
         .filter(|f| !f.is_dir)
         .map(|f| f.path.as_str())
         .collect();
 
-    // Compute extensions ONCE -- sorted for deterministic resolution
     let mut exts = crate::analysis::lang_registry::all_extensions();
     exts.sort_unstable();
-    let exts = exts;
 
-    // Detect project boundaries -- imports only resolve within the same project
     let project_map = build_project_map(files, scan_root);
     let t_project_map = t0.elapsed();
 
-    // JS/TS: dedicated oxc_resolver
-    let mut edges = resolve_js_ts_with_boundary(scan_root, files, &known_files, &project_map);
-    let t_oxc = t0.elapsed();
-
-    // Tier 2: suffix-index resolution for non-JS/TS languages
     let suffix_index = build_module_suffix_index(&known_files, scan_root, &project_map);
     let t_suffix = t0.elapsed();
-    let tier2_edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts);
-    edges.extend(tier2_edges);
 
+    let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts);
     let t_total = t0.elapsed();
+
     eprintln!(
-        "[resolve_imports] project_map {:.1}ms, oxc {:.1}ms, suffix_idx {:.1}ms, suffix_resolve {:.1}ms, total {:.1}ms",
+        "[resolve_imports] project_map {:.1}ms, suffix_idx {:.1}ms, suffix_resolve {:.1}ms, total {:.1}ms",
         t_project_map.as_secs_f64() * 1000.0,
-        (t_oxc - t_project_map).as_secs_f64() * 1000.0,
-        (t_suffix - t_oxc).as_secs_f64() * 1000.0,
+        (t_suffix - t_project_map).as_secs_f64() * 1000.0,
         (t_total - t_suffix).as_secs_f64() * 1000.0,
         t_total.as_secs_f64() * 1000.0,
     );
 
-    edges
-}
-
-/// Resolve JS/TS imports via oxc_resolver, then filter by project boundary.
-fn resolve_js_ts_with_boundary(
-    scan_root: &Path,
-    files: &[&FileNode],
-    known_files: &HashSet<&str>,
-    project_map: &HashMap<String, String>,
-) -> Vec<ImportEdge> {
-    let mut edges = super::oxc::resolve_js_ts_imports(scan_root, files, known_files);
-    let before = edges.len();
-    // Allow imports into the root project (empty string) from any sub-project.
-    edges.retain(|e| {
-        let from_proj = project_map.get(&e.from_file).map(|s| s.as_str()).unwrap_or("");
-        let to_proj = project_map.get(&e.to_file).map(|s| s.as_str()).unwrap_or("");
-        from_proj == to_proj || to_proj.is_empty()
-    });
-    let filtered = before - edges.len();
-    if filtered > 0 {
-        eprintln!("[resolve_js_ts] {} cross-project edges filtered ({}→{})", filtered, before, edges.len());
-    }
     edges
 }
 
@@ -189,13 +155,13 @@ fn resolve_tier2_imports(
     suffix_index: &SuffixIndex<'_>,
     exts: &[&str],
 ) -> Vec<ImportEdge> {
-    let js_ts = ["javascript", "typescript", "jsx", "tsx"];
     let stats = ResolutionStats::new();
     let idx = ResolutionIndex { known_files, project_map, suffix_index };
     let env = ResolveEnv { suffix_index, known_files, exts };
+    // All languages go through the unified suffix-index resolver (no tier split)
     let edges: Vec<ImportEdge> = files
         .par_iter()
-        .filter(|f| !f.is_dir && !js_ts.contains(&f.lang.as_str()))
+        .filter(|f| !f.is_dir)
         .flat_map_iter(|file| {
             let imports = match file.sa.as_ref().and_then(|sa| sa.imp.as_ref()) {
                 Some(imp) => imp,
