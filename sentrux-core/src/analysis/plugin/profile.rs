@@ -172,6 +172,11 @@ pub struct ImportAstConfig {
     /// Go: "import_spec". Empty = import node itself contains the path.
     pub child_import_kind: String,
 
+    /// Search ALL descendants for matching node kinds, not just direct children.
+    /// Needed when import paths are deeply nested in the AST
+    /// (e.g., Elixir multi-alias: call → arguments → tuple → alias).
+    pub recursive_search: bool,
+
     // ── scoped_path strategy ──
 
     /// Separator for joining scoped path segments. Rust: "::", Java: ".".
@@ -212,6 +217,7 @@ impl Default for ImportAstConfig {
             module_path_node_kinds: Vec::new(),
             string_content_kind: String::new(),
             child_import_kind: String::new(),
+            recursive_search: false,
             path_separator: String::new(),
             use_list_kind: String::new(),
             scoped_path_kinds: Vec::new(),

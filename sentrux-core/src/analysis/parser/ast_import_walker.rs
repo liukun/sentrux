@@ -57,21 +57,48 @@ fn extract_field_read(
         }
     }
 
-    // Fall back: iterate named children matching module_path_node_kinds
+    // Fall back: iterate children matching module_path_node_kinds
     let mut results = Vec::new();
-    for i in 0..import_node.named_child_count() {
-        if let Some(child) = import_node.named_child(i) {
-            if config.module_path_node_kinds.iter().any(|k| k == child.kind()) {
-                if config.filter_system_includes && child.kind() == config.system_include_kind {
-                    continue;
-                }
-                if let Some(path) = read_path_from_node(child, content, config) {
-                    results.push(apply_transform(&path, config));
+    if config.recursive_search {
+        // Recursive: search ALL descendants (for deeply nested imports like Elixir multi-alias)
+        collect_matching_descendants(import_node, content, config, &mut results);
+    } else {
+        // Direct children only (default — faster, no false matches)
+        for i in 0..import_node.named_child_count() {
+            if let Some(child) = import_node.named_child(i) {
+                if config.module_path_node_kinds.iter().any(|k| k == child.kind()) {
+                    if config.filter_system_includes && child.kind() == config.system_include_kind {
+                        continue;
+                    }
+                    if let Some(path) = read_path_from_node(child, content, config) {
+                        results.push(apply_transform(&path, config));
+                    }
                 }
             }
         }
     }
     results
+}
+
+/// Recursively collect all descendant nodes matching module_path_node_kinds.
+/// Used when import paths are deeply nested (e.g., Elixir multi-alias).
+fn collect_matching_descendants(
+    node: tree_sitter::Node,
+    content: &[u8],
+    config: &ImportAstConfig,
+    results: &mut Vec<String>,
+) {
+    for i in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(i) {
+            if config.module_path_node_kinds.iter().any(|k| k == child.kind()) {
+                if let Some(path) = read_path_from_node(child, content, config) {
+                    results.push(apply_transform(&path, config));
+                }
+            }
+            // Recurse into children regardless — multi-alias may nest several levels deep
+            collect_matching_descendants(child, content, config, results);
+        }
+    }
 }
 
 /// Handle container import nodes (Go import_declaration with multiple import_spec children).

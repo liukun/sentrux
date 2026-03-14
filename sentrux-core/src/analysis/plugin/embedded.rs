@@ -661,6 +661,7 @@ strategy = "field_read"
 module_path_field = ""
 module_path_node_kinds = ["alias"]
 module_name_transform = "pascal_to_snake"
+recursive_search = true
 
 [semantics.complexity]
 branch_nodes = []
