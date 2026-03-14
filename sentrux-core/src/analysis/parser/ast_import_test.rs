@@ -161,7 +161,7 @@ require Logger
     fn ast_all_langs_dump() {
         let samples: &[(&str, &str)] = &[
             ("bash", "#!/bin/bash\nmy_func() {\n  echo hello\n}\nsource ./utils.sh\n. ./helper.sh\n"),
-            ("gdscript", "func greet(name):\n  print(name)\nclass_name Cat\n"),
+            ("gdscript", "const Utils = preload(\"res://scripts/utils.gd\")\nvar scene = load(\"res://scenes/main.tscn\")\nfunc greet(name):\n  print(name)\nclass_name Cat\n"),
             ("haskell", "module Main where\nimport Data.List\ndata Color = Red | Green | Blue\nclass Printable a where\n  display :: a -> String\nnewtype Name = Name String\ngreet name = name\n"),
             ("scala", "package com.example\nimport scala.collection.mutable\ndef greet(name: String): Unit = println(name)\nclass Cat\n"),
             ("zig", "const std = @import(\"std\");\nfn hello(name: []const u8) void {\n  _ = name;\n}\n"),
