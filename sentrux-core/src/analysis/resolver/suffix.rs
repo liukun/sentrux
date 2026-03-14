@@ -438,8 +438,10 @@ fn inject_manifest_name_aliases<'a>(
             };
 
             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                let manifest_name = manifest_path.file_name()
+                    .and_then(|n| n.to_str()).unwrap_or(&resolver.alias_file);
                 if let Some(name) = extract_name_from_manifest(
-                    &content, &resolver.alias_field, &resolver.alias_file,
+                    &content, &resolver.alias_field, manifest_name,
                 ) {
                     let transformed = match resolver.alias_transform.as_str() {
                         "hyphen_to_underscore" => name.replace('-', "_"),
@@ -485,15 +487,15 @@ fn collect_manifest_path_aliases(
                 continue;
             }
 
-            let manifest_path = if project_dir.is_empty() {
-                scan_root.join(&resolver.alias_file)
+            let manifest_dir = if project_dir.is_empty() {
+                scan_root.to_path_buf()
             } else {
-                scan_root.join(project_dir).join(&resolver.alias_file)
+                scan_root.join(project_dir)
             };
-
-            if !manifest_path.exists() {
-                continue;
-            }
+            let manifest_path = match resolve_manifest_path(&manifest_dir, &resolver.alias_file) {
+                Some(p) => p,
+                None => continue,
+            };
 
             let content = match std::fs::read_to_string(&manifest_path) {
                 Ok(c) => c,
@@ -539,23 +541,83 @@ fn collect_manifest_path_aliases(
     aliases
 }
 
+/// Resolve a manifest filename to an actual path.
+/// Supports exact names ("Cargo.toml") and glob patterns ("*.csproj").
+fn resolve_manifest_path(dir: &Path, filename: &str) -> Option<std::path::PathBuf> {
+    if filename.starts_with('*') {
+        // Glob: find first file matching the extension
+        let ext = filename.trim_start_matches('*');
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name_str = name.to_string_lossy();
+                if name_str.ends_with(ext) && entry.path().is_file() {
+                    return Some(entry.path());
+                }
+            }
+        }
+        None
+    } else {
+        let path = dir.join(filename);
+        if path.exists() { Some(path) } else { None }
+    }
+}
+
 /// Extract a name field from a manifest file.
-/// Supports 4 universal data formats: JSON, TOML, XML, YAML.
-/// The format is auto-detected from the filename extension.
+/// Supports 5 strategies, auto-detected from filename extension:
+///   JSON (.json) — serde_json
+///   TOML (.toml) — toml crate
+///   XML  (.xml, .csproj, .fsproj, .vbproj) — quick-xml
+///   YAML (.yaml, .yml) — serde_yaml
+///   Line match (everything else) — scan for `field` as a line prefix, extract quoted string
 fn extract_name_from_manifest(content: &str, field: &str, filename: &str) -> Option<String> {
     if filename.ends_with(".json") {
         extract_json_field(content, field)
     } else if filename.ends_with(".toml") {
         extract_toml_field(content, field)
-    } else if filename.ends_with(".xml") || filename.ends_with(".csproj")
-        || filename.ends_with(".fsproj") || filename.ends_with(".vbproj")
-    {
+    } else if filename.ends_with(".xml") || filename.ends_with("proj") {
         extract_xml_field(content, field)
     } else if filename.ends_with(".yaml") || filename.ends_with(".yml") {
         extract_yaml_field(content, field)
     } else {
-        None
+        // Line match: scan for field as prefix, extract quoted string
+        // Works for: build.sbt (name := "x"), *.gemspec (spec.name = "x"),
+        // mix.exs (app: :x), Package.swift (name: "x")
+        extract_line_match(content, field)
     }
+}
+
+/// Extract a value by scanning lines for a prefix and extracting the string/symbol after it.
+/// Handles: `prefix "value"`, `prefix 'value'`, `prefix :value` (Elixir atoms).
+fn extract_line_match(content: &str, prefix: &str) -> Option<String> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
+            let rest = rest.trim().trim_start_matches(|c: char| c == '=' || c == ':').trim();
+            // Extract quoted string: "value" or 'value'
+            if rest.starts_with('"') {
+                return rest[1..].find('"').map(|i| rest[1..1 + i].to_string());
+            }
+            if rest.starts_with('\'') {
+                return rest[1..].find('\'').map(|i| rest[1..1 + i].to_string());
+            }
+            // Elixir atom: :my_app
+            if rest.starts_with(':') {
+                let atom = rest[1..].split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .next().unwrap_or("");
+                if !atom.is_empty() {
+                    return Some(atom.to_string());
+                }
+            }
+            // Bare word (no quotes)
+            let word = rest.split(|c: char| c.is_whitespace() || c == ',')
+                .next().unwrap_or("").trim_matches('"');
+            if !word.is_empty() {
+                return Some(word.to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Extract a dot-separated field from JSON (e.g., "name" or "compilerOptions.paths").
