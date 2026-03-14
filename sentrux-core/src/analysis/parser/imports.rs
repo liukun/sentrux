@@ -60,6 +60,50 @@ pub(crate) fn normalize_module_path(raw: &str, dots_are_separators: bool) -> Str
     format!("{}{}", prefix, normalized)
 }
 
+// ── Brace expansion ─────────────────────────────────────────────────────
+
+/// Generic brace expansion for import paths.
+/// `Prefix.{A, B, C}` → `["Prefix.A", "Prefix.B", "Prefix.C"]`
+/// `Prefix::{A, B}` → `["Prefix::A", "Prefix::B"]`
+///
+/// Works on raw text — no AST knowledge needed. Handles any separator
+/// (`.`, `::`, `/`) that appears before the `{`. Language-agnostic.
+///
+/// If the text contains no `{...}`, returns an empty vec (caller uses other methods).
+pub(crate) fn expand_braces(text: &str) -> Vec<String> {
+    let brace_start = match text.find('{') {
+        Some(i) => i,
+        None => return vec![],
+    };
+    let brace_end = match text[brace_start..].find('}') {
+        Some(i) => brace_start + i,
+        None => return vec![], // Malformed — no closing brace
+    };
+
+    // Find the start of the token containing `{` (go back to last whitespace)
+    let word_start = text[..brace_start]
+        .rfind(|c: char| c.is_whitespace())
+        .map(|i| i + 1)
+        .unwrap_or(0);
+
+    // Prefix: everything from word start to `{`
+    let prefix = &text[word_start..brace_start];
+
+    // Items: comma-separated inside `{}`
+    let items_str = &text[brace_start + 1..brace_end];
+    let items: Vec<&str> = items_str
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if items.is_empty() {
+        return vec![];
+    }
+
+    items.iter().map(|item| format!("{}{}", prefix, item)).collect()
+}
+
 // ── Base class extraction ───────────────────────────────────────────────
 
 /// Extract base/parent class names from a class definition AST node.
@@ -354,5 +398,68 @@ pub(crate) fn hash_body(body: &str, lang: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     normalized.hash(&mut hasher);
     hasher.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn brace_expansion_elixir_style() {
+        let result = expand_braces("alias Acme.Domain.{Product, Error}");
+        assert_eq!(result, vec!["Acme.Domain.Product", "Acme.Domain.Error"]);
+    }
+
+    #[test]
+    fn brace_expansion_three_items() {
+        let result = expand_braces("alias Acme.Inventory.Domain.{Product, ProductNotFoundError, InsufficientStockError}");
+        assert_eq!(result, vec![
+            "Acme.Inventory.Domain.Product",
+            "Acme.Inventory.Domain.ProductNotFoundError",
+            "Acme.Inventory.Domain.InsufficientStockError",
+        ]);
+    }
+
+    #[test]
+    fn brace_expansion_no_braces() {
+        let result = expand_braces("alias Acme.Shared.V1");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn brace_expansion_double_colon() {
+        let result = expand_braces("use std::collections::{HashMap, BTreeMap}");
+        assert_eq!(result, vec!["std::collections::HashMap", "std::collections::BTreeMap"]);
+    }
+
+    #[test]
+    fn brace_expansion_no_prefix_keyword() {
+        // Direct path without keyword
+        let result = expand_braces("Foo.{Bar, Baz}");
+        assert_eq!(result, vec!["Foo.Bar", "Foo.Baz"]);
+    }
+
+    #[test]
+    fn brace_expansion_empty_braces() {
+        let result = expand_braces("Foo.{}");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn normalize_dot_separator() {
+        assert_eq!(normalize_module_path("os.path", true), "os/path");
+        assert_eq!(normalize_module_path("os.path", false), "os.path");
+    }
+
+    #[test]
+    fn normalize_rust_path() {
+        assert_eq!(normalize_module_path("std::collections::HashMap", false), "std/collections/HashMap");
+    }
+
+    #[test]
+    fn normalize_relative() {
+        assert_eq!(normalize_module_path("..utils", true), "..utils");
+        assert_eq!(normalize_module_path("...deep.path", true), "...deep/path");
+    }
 }
 

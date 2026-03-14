@@ -330,8 +330,24 @@ pub(super) fn process_import(
         let module = apply_module_transform(module, transform);
         insert_normalized(&module, dots_are_seps, imports, import_set);
     } else if let Some(node) = ictx.import_node.or(ictx.match_node) {
+        // Generic brace expansion: Prefix.{A, B} → Prefix.A, Prefix.B
+        // Only for non-scoped_path languages — scoped_path (Rust, Java) has its
+        // own use_list handling that's AST-aware (type vs module filtering).
+        let strategy = &profile.semantics.import_ast.strategy;
+        if strategy != "scoped_path" {
+            if let Ok(text) = node.utf8_text(content) {
+                let expanded = super::imports::expand_braces(text);
+                if !expanded.is_empty() {
+                    for raw in &expanded {
+                        let module = apply_module_transform(raw, transform);
+                        insert_normalized(&module, dots_are_seps, imports, import_set);
+                    }
+                    return;
+                }
+            }
+        }
+        // AST-based: walk tree-sitter nodes directly
         if profile.semantics.import_ast.is_configured() {
-            // AST-based: walk tree-sitter nodes directly
             let paths = super::ast_import_walker::extract_imports_from_ast(
                 node, content, &profile.semantics.import_ast,
             );
@@ -339,8 +355,5 @@ pub(super) fn process_import(
                 insert_normalized(&raw, dots_are_seps, imports, import_set);
             }
         }
-        // Languages without import_ast configured rely on @import.module
-        // captures (branch 1 above). If neither is configured, no imports
-        // are extracted — the plugin needs to be updated.
     }
 }

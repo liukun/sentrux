@@ -664,10 +664,6 @@ module_path_field = ""
 module_path_node_kinds = ["alias"]
 module_name_transform = "pascal_to_snake"
 recursive_search = true
-multi_alias_container = "dot"
-multi_alias_prefix_field = "left"
-multi_alias_list_field = "right"
-multi_alias_list_kinds = ["tuple", "list"]
 
 [semantics.complexity]
 branch_nodes = []

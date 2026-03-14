@@ -251,25 +251,6 @@ pub struct ImportAstConfig {
     /// (e.g., Elixir multi-alias: call → arguments → tuple → alias).
     pub recursive_search: bool,
 
-    // ── Multi-alias expansion (e.g., Elixir: alias Domain.{A, B}) ──
-
-    /// Node kind that wraps prefix + list (Elixir: "dot").
-    /// When found during recursive search, expands prefix.item for each item.
-    #[serde(default)]
-    pub multi_alias_container: String,
-
-    /// Field name on the container node that holds the prefix (Elixir: "left").
-    #[serde(default)]
-    pub multi_alias_prefix_field: String,
-
-    /// Field name on the container node that holds the items list (Elixir: "right").
-    #[serde(default)]
-    pub multi_alias_list_field: String,
-
-    /// Node kinds for the items container (Elixir: ["tuple", "list"]).
-    #[serde(default)]
-    pub multi_alias_list_kinds: Vec<String>,
-
     // ── scoped_path strategy ──
 
     /// Separator for joining scoped path segments. Rust: "::", Java: ".".
@@ -326,10 +307,6 @@ impl Default for ImportAstConfig {
             string_content_kind: String::new(),
             child_import_kind: String::new(),
             recursive_search: false,
-            multi_alias_container: String::new(),
-            multi_alias_prefix_field: String::new(),
-            multi_alias_list_field: String::new(),
-            multi_alias_list_kinds: Vec::new(),
             path_separator: String::new(),
             use_list_kind: String::new(),
             scoped_path_kinds: Vec::new(),

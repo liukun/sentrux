@@ -81,12 +81,9 @@ fn extract_field_read(
 }
 
 /// Recursively collect all descendant nodes matching module_path_node_kinds.
-/// Used when import paths are deeply nested (e.g., Elixir multi-alias).
-///
-/// Handles multi-alias expansion:
-///   alias Acme.Domain.{Product, Error}
-/// AST: call → arguments → dot(left: alias("Acme.Domain"), right: tuple(alias("Product"), alias("Error")))
-/// Result: ["Acme.Domain.Product", "Acme.Domain.Error"] → after transform → ["acme/domain/product", "acme/domain/error"]
+/// Used when import paths are deeply nested in the AST.
+/// Multi-alias expansion (e.g., Elixir `Prefix.{A, B}`) is handled by
+/// generic brace expansion in imports.rs — no AST knowledge needed here.
 fn collect_matching_descendants(
     node: tree_sitter::Node,
     content: &[u8],
@@ -95,33 +92,6 @@ fn collect_matching_descendants(
 ) {
     for i in 0..node.named_child_count() {
         if let Some(child) = node.named_child(i) {
-            // Check for multi-alias container (configured via TOML, e.g., Elixir "dot")
-            if !config.multi_alias_container.is_empty()
-                && child.kind() == config.multi_alias_container
-            {
-                if let (Some(left), Some(right)) = (
-                    child.child_by_field_name(&config.multi_alias_prefix_field),
-                    child.child_by_field_name(&config.multi_alias_list_field),
-                ) {
-                    if config.multi_alias_list_kinds.iter().any(|k| k == right.kind()) {
-                        if let Some(prefix) = read_path_from_node(left, content, config) {
-                            // Collect each alias inside the tuple/list
-                            for j in 0..right.named_child_count() {
-                                if let Some(item) = right.named_child(j) {
-                                    if config.module_path_node_kinds.iter().any(|k| k == item.kind()) {
-                                        if let Some(name) = read_path_from_node(item, content, config) {
-                                            let full = format!("{}.{}", prefix, name);
-                                            results.push(apply_transform(&full, config));
-                                        }
-                                    }
-                                }
-                            }
-                            continue; // Already handled — don't recurse into dot's children
-                        }
-                    }
-                }
-            }
-
             if config.module_path_node_kinds.iter().any(|k| k == child.kind()) {
                 if let Some(path) = read_path_from_node(child, content, config) {
                     results.push(apply_transform(&path, config));
