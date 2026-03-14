@@ -105,7 +105,9 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
     let path_aliases = load_path_aliases(&project_map, scan_root);
     let t_suffix = t0.elapsed();
 
-    let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts, &path_aliases);
+    // Detect workspace: if workspace aliases exist, allow cross-project imports between members
+    let is_workspace = !path_aliases.is_empty() && path_aliases.values().any(|aliases| !aliases.is_empty());
+    let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts, &path_aliases, is_workspace);
     let t_total = t0.elapsed();
 
     eprintln!(
@@ -126,6 +128,7 @@ fn resolve_single_specifier(
     idx: &ResolutionIndex<'_>,
     env: &ResolveEnv<'_>,
     stats: &ResolutionStats,
+    is_workspace: bool,
 ) -> Option<ImportEdge> {
     if src.specifier.starts_with('<') {
         return None;
@@ -134,7 +137,8 @@ fn resolve_single_specifier(
     match resolved {
         Some(target) if target != src.file.path => {
             let dst_project = idx.project_map.get(&target).map(|s| s.as_str()).unwrap_or("");
-            if src.src_project == dst_project || dst_project.is_empty() {
+            // Allow: same project, root project (empty), or workspace siblings
+            if src.src_project == dst_project || dst_project.is_empty() || is_workspace {
                 stats.resolved_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 Some(ImportEdge { from_file: src.file.path.clone(), to_file: target })
             } else {
@@ -158,6 +162,7 @@ fn resolve_tier2_imports(
     suffix_index: &SuffixIndex<'_>,
     exts: &[&str],
     path_aliases: &HashMap<String, Vec<PathAlias>>,
+    is_workspace: bool,
 ) -> Vec<ImportEdge> {
     let stats = ResolutionStats::new();
     let idx = ResolutionIndex { known_files, project_map, suffix_index };
@@ -182,7 +187,7 @@ fn resolve_tier2_imports(
                     let resolved_spec = apply_path_alias(specifier, project_aliases);
                     let spec_ref = resolved_spec.as_deref().unwrap_or(specifier);
                     let src = SourceContext { specifier: spec_ref, file, file_dir, src_project };
-                    resolve_single_specifier(&src, &idx, &env, &stats)
+                    resolve_single_specifier(&src, &idx, &env, &stats, is_workspace)
                 })
                 .collect()
         })
