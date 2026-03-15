@@ -36,6 +36,7 @@ jobs:
         run: npm install -g tree-sitter-cli
 
       - name: Build all grammars
+        shell: bash
         run: |
           set +e  # Don't exit on individual grammar build failures
           WORKSPACE="$(pwd)"
@@ -126,6 +127,7 @@ jobs:
           done
 
       - name: Package grammars bundle
+        shell: bash
         run: |
           # Create directory structure matching what ensure_grammars_installed expects:
           # <lang>/grammars/<platform>.<ext>
@@ -154,15 +156,17 @@ jobs:
   attach-to-release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Download all platform bundles
         uses: actions/download-artifact@v4
+        continue-on-error: true
 
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
+          fail_on_unmatched_files: false
           files: |
             grammars-darwin-arm64/grammars-darwin-arm64.tar.gz
             grammars-linux-x86_64/grammars-linux-x86_64.tar.gz
