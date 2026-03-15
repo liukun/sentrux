@@ -17,12 +17,22 @@ use sentrux_core::metrics;
 // CLI definition
 // ---------------------------------------------------------------------------
 
+fn edition_name() -> &'static str {
+    let tier = sentrux_core::license::current_tier();
+    if tier >= sentrux_core::license::Tier::Pro {
+        "Pro"
+    } else if cfg!(feature = "pro") {
+        "Free"        // Pre-built binary (has Pro code, no license key)
+    } else {
+        "Community"   // Source build (no Pro code)
+    }
+}
+
 fn version_string() -> &'static str {
     use std::sync::OnceLock;
     static VERSION: OnceLock<String> = OnceLock::new();
     VERSION.get_or_init(|| {
-        let edition = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Pro" } else { "Free" };
-        format!("{} ({})", env!("CARGO_PKG_VERSION"), edition)
+        format!("{} ({})", env!("CARGO_PKG_VERSION"), edition_name())
     })
 }
 
@@ -676,10 +686,8 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
     };
 
     let version = env!("CARGO_PKG_VERSION");
-    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro {
-        format!("Sentrux Pro v{}", version)
-    } else {
-        format!("Sentrux v{}", version)
+    let title = {
+        format!("Sentrux {} v{}", edition_name(), version)
     };
     let title = title.as_str();
 
@@ -739,10 +747,8 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
 fn run_gui_glow(initial_path: Option<String>) -> eframe::Result<()> {
     sentrux_core::debug_log!("[gpu] falling back to glow (software OpenGL)");
     let version = env!("CARGO_PKG_VERSION");
-    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro {
-        format!("Sentrux Pro v{}", version)
-    } else {
-        format!("Sentrux v{}", version)
+    let title = {
+        format!("Sentrux {} v{}", edition_name(), version)
     };
     let title = title.as_str();
     let options = eframe::NativeOptions {

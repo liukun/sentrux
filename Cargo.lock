@@ -3379,7 +3379,7 @@ checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
 
 [[package]]
 name = "sentrux"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "clap",
  "eframe",
@@ -3390,7 +3390,7 @@ dependencies = [
 
 [[package]]
 name = "sentrux-core"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "crossbeam-channel",
  "dashmap",
@@ -3418,6 +3418,7 @@ dependencies = [
 name = "sentrux-pro"
 version = "0.4.5"
 dependencies = [
+ "dirs",
  "sentrux-core",
 ]
 
