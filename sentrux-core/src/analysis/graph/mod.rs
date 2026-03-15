@@ -58,7 +58,7 @@ pub fn build_graphs(
     dedup_import_edges(&mut import_edges);
 
     let import_targets = build_import_target_index(&import_edges);
-    let call_edges = compute_call_edges(files, &lang_map, &func_map, &import_targets, max_call_targets);
+    let call_edges = compute_call_edges(files, &lang_map, &func_map, &class_map, &import_targets, max_call_targets);
     let inherit_edges = compute_inherit_edges(files, &lang_map, &class_map, &import_targets);
     let entry_points = collect_entry_points(files);
     let exec_depth = compute_exec_depth(&import_edges, &entry_points);
@@ -212,6 +212,7 @@ fn compute_call_edges<'a>(
     files: &[&'a FileNode],
     lang_map: &HashMap<&'a str, &'a str>,
     func_map: &HashMap<&'a str, Vec<&'a str>>,
+    class_map: &HashMap<&'a str, Vec<&'a str>>,
     import_targets: &HashMap<&'a str, HashSet<&'a str>>,
     max_call_targets: usize,
 ) -> Vec<CallEdge> {
@@ -234,9 +235,16 @@ fn compute_call_edges<'a>(
             };
 
             let mut emit_call = |from_func: &str, call_name: &str| {
-                let targets = resolve_call_targets(
+                // Match against function names
+                let mut targets = resolve_call_targets(
                     call_name, &file.path, src_lang, func_map, lang_map, imported_files, max_call_targets, implicit,
                 );
+                // Also match against class/type names — type references are dependencies too
+                if targets.is_empty() {
+                    targets = resolve_call_targets(
+                        call_name, &file.path, src_lang, class_map, lang_map, imported_files, max_call_targets, implicit,
+                    );
+                }
                 for target_file in targets {
                     edges.push(CallEdge {
                         from_file: file.path.clone(),
