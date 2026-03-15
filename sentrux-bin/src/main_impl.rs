@@ -21,10 +21,8 @@ fn edition_name() -> &'static str {
     let tier = sentrux_core::license::current_tier();
     if tier >= sentrux_core::license::Tier::Pro {
         "Pro"
-    } else if cfg!(feature = "pro") {
-        "Free"        // Pre-built binary (has Pro code, no license key)
     } else {
-        "Community"   // Source build (no Pro code)
+        ""            // Don't show "Free" or "Community" — just "sentrux"
     }
 }
 
@@ -32,7 +30,12 @@ fn version_string() -> &'static str {
     use std::sync::OnceLock;
     static VERSION: OnceLock<String> = OnceLock::new();
     VERSION.get_or_init(|| {
-        let base = format!("{} ({})", env!("CARGO_PKG_VERSION"), edition_name());
+        let edition = edition_name();
+        let base = if edition.is_empty() {
+            env!("CARGO_PKG_VERSION").to_string()
+        } else {
+            format!("{} ({})", env!("CARGO_PKG_VERSION"), edition)
+        };
         if let Some(latest) = sentrux_core::app::update_check::available_update() {
             format!("{}\n  Update available: v{} → brew upgrade sentrux", base, latest)
         } else {
@@ -692,7 +695,12 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
 
     let version = env!("CARGO_PKG_VERSION");
     let title = {
-        format!("Sentrux {} v{}", edition_name(), version)
+        let edition = edition_name();
+        if edition.is_empty() {
+            format!("sentrux v{}", version)
+        } else {
+            format!("Sentrux {} v{}", edition, version)
+        }
     };
     let title = title.as_str();
 
@@ -753,7 +761,12 @@ fn run_gui_glow(initial_path: Option<String>) -> eframe::Result<()> {
     sentrux_core::debug_log!("[gpu] falling back to glow (software OpenGL)");
     let version = env!("CARGO_PKG_VERSION");
     let title = {
-        format!("Sentrux {} v{}", edition_name(), version)
+        let edition = edition_name();
+        if edition.is_empty() {
+            format!("sentrux v{}", version)
+        } else {
+            format!("Sentrux {} v{}", edition, version)
+        }
     };
     let title = title.as_str();
     let options = eframe::NativeOptions {

@@ -541,7 +541,7 @@ fn handle_check_rules(_args: &Value, tier: &Tier, state: &mut McpState) -> Resul
         response["truncated"] = json!({
             "total_rules_defined": total_rules,
             "rules_checked": result.rules_checked,
-            "message": "Free tier checks up to 3 rules. Upgrade to Pro for unlimited: https://github.com/sentrux/sentrux"
+            "message": "Checking up to 3 rules. More available with sentrux Pro: https://github.com/sentrux/sentrux"
         });
     }
     Ok(response)

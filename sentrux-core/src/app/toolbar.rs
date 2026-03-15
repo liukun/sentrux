@@ -343,7 +343,7 @@ fn draw_toggle_buttons(ui: &mut egui::Ui, state: &mut AppState) {
     // Export button — Free: grades only, Pro: full detail
     if state.health_report.is_some() {
         let is_pro = crate::license::current_tier().is_pro();
-        let tip = if is_pro { "Export full report (Pro)" } else { "Export grade summary" };
+        let tip = if is_pro { "Export full report" } else { "Export grade summary" };
         if ui.button("\u{2913}").on_hover_text(tip).clicked() {
             if let Some(report) = &state.health_report {
                 let d = &report.dimensions;
