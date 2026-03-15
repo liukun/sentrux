@@ -32,26 +32,12 @@ pub fn draw_metrics_panel(ctx: &egui::Context, state: &mut AppState) {
                 .stroke(egui::Stroke::new(1.0, tc.section_border)),
         )
         .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new(format!("┌ Sentrux v{}", env!("CARGO_PKG_VERSION")))
-                        .monospace()
-                        .size(10.0)
-                        .color(tc.section_label),
-                );
-                if let Some(latest) = crate::app::update_check::available_update() {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(
-                            egui::RichText::new(format!("v{} available", latest))
-                                .monospace()
-                                .size(9.0)
-                                .color(egui::Color32::from_rgb(115, 201, 145)),
-                        ).on_hover_text("brew upgrade sentrux");
-                    });
-                    // Request repaint so indicator appears after background check
-                    ui.ctx().request_repaint();
-                }
-            });
+            ui.label(
+                egui::RichText::new(format!("┌ Sentrux v{}", env!("CARGO_PKG_VERSION")))
+                    .monospace()
+                    .size(10.0)
+                    .color(tc.section_label),
+            );
             draw_sep(ui, &tc, 2.0);
 
             egui::ScrollArea::vertical()

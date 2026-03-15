@@ -238,6 +238,20 @@ pub fn draw_activity_panel(ctx: &egui::Context, state: &mut AppState) -> bool {
             .inner_margin(egui::Margin::same(4))
             .stroke(egui::Stroke::new(1.0, tc.section_border)))
         .show(ctx, |ui| {
+            // Update indicator — top of right panel
+            if let Some(latest) = crate::app::update_check::available_update() {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!("  v{} available", latest))
+                            .monospace()
+                            .size(9.0)
+                            .color(egui::Color32::from_rgb(115, 201, 145)),
+                    ).on_hover_text("brew upgrade sentrux");
+                });
+                draw_sep(ui, &tc, 2.0);
+                ui.ctx().request_repaint();
+            }
+
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {

@@ -32,27 +32,47 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Stores the latest available version if newer than current.
-/// Read by GUI (toolbar indicator) and CLI (version hint).
-static LATEST_VERSION: OnceLock<String> = OnceLock::new();
+static LATEST_VERSION: Mutex<Option<String>> = Mutex::new(None);
 
-/// Check if a newer version is available. Returns Some("x.y.z") or None.
-/// Reads from memory (set by background check) or disk cache.
-pub fn available_update() -> Option<&'static str> {
-    // Try memory first (set by background thread)
-    if let Some(v) = LATEST_VERSION.get() {
-        return Some(v.as_str());
+/// Check if a newer version is available. Returns Some(version_string).
+pub fn available_update() -> Option<String> {
+    // Try memory first
+    if let Ok(guard) = LATEST_VERSION.lock() {
+        if let Some(v) = guard.as_ref() {
+            return Some(v.clone());
+        }
     }
-    // Try disk cache (set by previous run)
+    // Try disk cache
     if let Some(path) = latest_version_cache_path() {
         if let Ok(v) = std::fs::read_to_string(&path) {
             let v = v.trim().to_string();
             if !v.is_empty() {
-                let _ = LATEST_VERSION.set(v);
-                return LATEST_VERSION.get().map(|s| s.as_str());
+                if let Ok(mut guard) = LATEST_VERSION.lock() {
+                    *guard = Some(v.clone());
+                }
+                return Some(v);
             }
         }
     }
     None
+}
+
+fn set_latest_version(version: &str) {
+    if let Ok(mut guard) = LATEST_VERSION.lock() {
+        *guard = Some(version.to_string());
+    }
+    if let Some(path) = latest_version_cache_path() {
+        let _ = std::fs::write(&path, version);
+    }
+}
+
+fn clear_latest_version() {
+    if let Ok(mut guard) = LATEST_VERSION.lock() {
+        *guard = None;
+    }
+    if let Some(path) = latest_version_cache_path() {
+        let _ = std::fs::remove_file(&path);
+    }
 }
 
 fn latest_version_cache_path() -> Option<PathBuf> {
@@ -384,16 +404,9 @@ fn check_and_notify(current_version: &str) {
             // ── Phase 3b: Ping succeeded — counters already zeroed in Phase 1 ──
             save_check_timestamp();
             if is_newer(current_version, latest_version) {
-                let _ = LATEST_VERSION.set(latest_version.to_string());
-                // Persist so CLI can read it without waiting for background check
-                if let Some(path) = latest_version_cache_path() {
-                    let _ = std::fs::write(&path, latest_version);
-                }
+                set_latest_version(latest_version);
             } else {
-                // Current is latest — clear any stale cache
-                if let Some(path) = latest_version_cache_path() {
-                    let _ = std::fs::remove_file(&path);
-                }
+                clear_latest_version();
             }
         }
         None => {
