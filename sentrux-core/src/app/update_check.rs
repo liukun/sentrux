@@ -28,8 +28,36 @@
 //! Respects SENTRUX_DEV=1 to tag pings as internal/dev traffic.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// Stores the latest available version if newer than current.
+/// Read by GUI (toolbar indicator) and CLI (version hint).
+static LATEST_VERSION: OnceLock<String> = OnceLock::new();
+
+/// Check if a newer version is available. Returns Some("x.y.z") or None.
+/// Reads from memory (set by background check) or disk cache.
+pub fn available_update() -> Option<&'static str> {
+    // Try memory first (set by background thread)
+    if let Some(v) = LATEST_VERSION.get() {
+        return Some(v.as_str());
+    }
+    // Try disk cache (set by previous run)
+    if let Some(path) = latest_version_cache_path() {
+        if let Ok(v) = std::fs::read_to_string(&path) {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                let _ = LATEST_VERSION.set(v);
+                return LATEST_VERSION.get().map(|s| s.as_str());
+            }
+        }
+    }
+    None
+}
+
+fn latest_version_cache_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".sentrux").join("latest_version"))
+}
 
 /// Cloudflare Worker endpoint.
 const UPDATE_CHECK_URL: &str = "https://api.sentrux.dev/version";
@@ -356,10 +384,16 @@ fn check_and_notify(current_version: &str) {
             // ── Phase 3b: Ping succeeded — counters already zeroed in Phase 1 ──
             save_check_timestamp();
             if is_newer(current_version, latest_version) {
-                eprintln!(
-                    "\n  New version available: {} → {}\n  Update: brew upgrade sentrux\n",
-                    current_version, latest_version
-                );
+                let _ = LATEST_VERSION.set(latest_version.to_string());
+                // Persist so CLI can read it without waiting for background check
+                if let Some(path) = latest_version_cache_path() {
+                    let _ = std::fs::write(&path, latest_version);
+                }
+            } else {
+                // Current is latest — clear any stale cache
+                if let Some(path) = latest_version_cache_path() {
+                    let _ = std::fs::remove_file(&path);
+                }
             }
         }
         None => {

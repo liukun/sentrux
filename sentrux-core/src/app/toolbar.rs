@@ -337,7 +337,21 @@ fn draw_activity_toggle(ui: &mut egui::Ui, state: &mut AppState) {
 fn draw_toggle_buttons(ui: &mut egui::Ui, state: &mut AppState) {
     draw_edge_toggle(ui, state);
     draw_dsm_toggle(ui, state);
-    // Activity toggle removed — right panel is always visible
+
+    // Update available indicator
+    if let Some(latest) = crate::app::update_check::available_update() {
+        let btn = ui.add(
+            egui::Button::new(
+                egui::RichText::new(format!("v{} available", latest))
+                    .monospace()
+                    .size(9.0)
+                    .color(egui::Color32::from_rgb(115, 201, 145))
+            )
+            .fill(egui::Color32::TRANSPARENT)
+            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(115, 201, 145)))
+        );
+        btn.on_hover_text("https://github.com/sentrux/sentrux/releases");
+    }
 
     // Export button — Free: grades only, Pro: full detail
     if state.health_report.is_some() {

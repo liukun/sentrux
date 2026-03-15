@@ -32,7 +32,12 @@ fn version_string() -> &'static str {
     use std::sync::OnceLock;
     static VERSION: OnceLock<String> = OnceLock::new();
     VERSION.get_or_init(|| {
-        format!("{} ({})", env!("CARGO_PKG_VERSION"), edition_name())
+        let base = format!("{} ({})", env!("CARGO_PKG_VERSION"), edition_name());
+        if let Some(latest) = sentrux_core::app::update_check::available_update() {
+            format!("{}\n  Update available: v{} → brew upgrade sentrux", base, latest)
+        } else {
+            base
+        }
     })
 }
 
