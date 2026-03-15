@@ -604,10 +604,10 @@ fn probe_available_backends() -> Vec<eframe::wgpu::Backends> {
         });
         let adapters: Vec<_> = instance.enumerate_adapters(eframe::wgpu::Backends::all());
         if !adapters.is_empty() {
-            eprintln!("[gpu] probe {label}: {} adapter(s) found", adapters.len());
+            sentrux_core::debug_log!("[gpu] probe {label}: {} adapter(s) found", adapters.len());
             available.push(*backends);
         } else {
-            eprintln!("[gpu] probe {label}: no adapters");
+            sentrux_core::debug_log!("[gpu] probe {label}: no adapters");
         }
     }
     available
@@ -631,8 +631,20 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
     } else {
         let probed = probe_available_backends();
         if probed.is_empty() {
-            eprintln!("[gpu] no GPU adapters found on this system");
-            eprintln!("[gpu] hint: try setting WGPU_BACKEND=vulkan or WGPU_BACKEND=gl");
+            eprintln!();
+            eprintln!("  sentrux GUI requires a GPU (Vulkan, Metal, or OpenGL).");
+            eprintln!("  No GPU adapters found on this system.");
+            eprintln!();
+            eprintln!("  CLI commands work without GPU:");
+            eprintln!("    sentrux check .          # code health check");
+            eprintln!("    sentrux gate --save .    # save baseline");
+            eprintln!("    sentrux mcp              # start MCP server");
+            eprintln!();
+            #[cfg(windows)]
+            {
+                eprintln!("  Press Enter to exit...");
+                let _ = std::io::stdin().read_line(&mut String::new());
+            }
             std::process::exit(1);
         }
         probed
@@ -641,7 +653,7 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
     let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" };
 
     for (i, backends) in backend_attempts.iter().enumerate() {
-        eprintln!("[gpu] attempt {}/{}: backends {:?}", i + 1, backend_attempts.len(), backends);
+        sentrux_core::debug_log!("[gpu] attempt {}/{}: backends {:?}", i + 1, backend_attempts.len(), backends);
 
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
@@ -676,16 +688,33 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
         match result {
             Ok(Ok(())) => return Ok(()),
             Ok(Err(e)) => {
-                eprintln!("[gpu] backend {:?} failed: {e}", backends);
+                sentrux_core::debug_log!("[gpu] backend {:?} failed: {e}", backends);
             }
             Err(_panic) => {
-                eprintln!("[gpu] backend {:?} panicked (driver issue)", backends);
+                sentrux_core::debug_log!("[gpu] backend {:?} panicked (driver issue)", backends);
             }
         }
 
         if i + 1 == backend_attempts.len() {
-            eprintln!("[gpu] all backends exhausted");
-            eprintln!("[gpu] hint: try setting WGPU_BACKEND=vulkan or WGPU_BACKEND=gl");
+            eprintln!();
+            eprintln!("  sentrux GUI requires a GPU (Vulkan, Metal, or OpenGL).");
+            eprintln!("  This system has no compatible GPU backend.");
+            eprintln!();
+            eprintln!("  CLI commands work without GPU:");
+            eprintln!("    sentrux check .          # code health check");
+            eprintln!("    sentrux gate --save .    # save baseline");
+            eprintln!("    sentrux gate .           # compare against baseline");
+            eprintln!("    sentrux mcp              # start MCP server");
+            eprintln!();
+            eprintln!("  To use the GUI, connect from a machine with a GPU,");
+            eprintln!("  or set WGPU_BACKEND=gl for software rendering.");
+            eprintln!();
+            // On Windows, keep console open so user can read the message
+            #[cfg(windows)]
+            {
+                eprintln!("  Press Enter to exit...");
+                let _ = std::io::stdin().read_line(&mut String::new());
+            }
             std::process::exit(1);
         }
     }
