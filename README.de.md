@@ -119,7 +119,7 @@ oder
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. 23 Sprachen via tree-sitter Plugins.
+Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. 50 Sprachen via tree-sitter Plugins.
 
 **Schritt 2 — Ausführen**
 
@@ -230,7 +230,7 @@ sentrux check .
 
 ## Unterstützte Sprachen
 
-23 Sprachen über [tree-sitter](https://tree-sitter.github.io/) Plugins:
+50 Sprachen über [tree-sitter](https://tree-sitter.github.io/) Plugins:
 
 Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
 
@@ -242,7 +242,7 @@ sentrux plugin add <name>        # Community-Plugin installieren
 sentrux plugin init my-lang      # neues Sprach-Plugin erstellen
 ```
 
-Plugins verwenden tree-sitter-Grammatiken mit einer einfachen Query-Datei — der gleiche Ansatz wie bei Neovim/Helix.
+Plugins verwenden tree-sitter-Grammatiken mit einer einfachen Query-Datei.
 
 Fehlt eine Sprache? [Issue erstellen](https://github.com/sentrux/sentrux/issues) oder ein Plugin-PR einreichen.
 

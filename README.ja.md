@@ -119,7 +119,7 @@ brew install sentrux/tap/sentrux
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pure Rust。単一バイナリ。ランタイム依存なし。tree-sitterプラグインで23言語対応。
+Pure Rust。単一バイナリ。ランタイム依存なし。tree-sitterプラグインで50言語対応。
 
 **ステップ 2 — 実行する**
 
@@ -230,7 +230,7 @@ sentrux check .
 
 ## 対応言語
 
-[tree-sitter](https://tree-sitter.github.io/) プラグインで23言語対応：
+[tree-sitter](https://tree-sitter.github.io/) プラグインで50言語対応：
 
 Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
 
@@ -242,7 +242,7 @@ sentrux plugin add <name>        # コミュニティプラグインをインス
 sentrux plugin init my-lang      # 新しい言語プラグインを作成
 ```
 
-プラグインはtree-sitterグラマーとシンプルなクエリファイルを使用——Neovim/Helixと同じアプローチ。
+プラグインはtree-sitterグラマーとシンプルなクエリファイルを使用。
 
 言語が足りない？[issueを作成](https://github.com/sentrux/sentrux/issues)またはプラグインPRを提出。
 

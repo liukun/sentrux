@@ -254,7 +254,7 @@ sentrux plugin add-standard      # install all 50 languages
 sentrux plugin init my-lang      # scaffold a new language plugin
 ```
 
-Architecture: the binary is a **generic platform** — all language knowledge lives in `plugin.toml` + `tags.scm` query files (same approach as [Helix](https://helix-editor.com/)). Adding a new language requires zero Rust code.
+Architecture: the binary is a **generic platform** — all language knowledge lives in `plugin.toml` + `tags.scm` query files. Adding a new language requires zero Rust code.
 
 Missing a language? [Open an issue](https://github.com/sentrux/sentrux/issues) or add a plugin to [`plugins/`](plugins/).
 
