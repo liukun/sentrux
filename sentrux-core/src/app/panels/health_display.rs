@@ -93,16 +93,11 @@ fn draw_root_cause_row(
         label, font.clone(), tc.text_secondary,
     );
 
-    // Score as colored percentage — mark ceiling when > 95%
+    // Score as colored percentage — no ceiling markers (ceiling is unknowable from snapshot)
     let color = score_color(score);
-    let score_text = if score > 0.95 {
-        format!("{:.0}% \u{2713}", score * 100.0) // ✓ = at ceiling
-    } else {
-        format!("{:.0}%", score * 100.0)
-    };
     ui.painter().text(
         egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-        &score_text, font.clone(), color,
+        format!("{:.0}%", score * 100.0), font.clone(), color,
     );
 
     // Raw value
