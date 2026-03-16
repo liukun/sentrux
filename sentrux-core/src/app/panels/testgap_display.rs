@@ -6,7 +6,7 @@
 //! Key function: `draw_testgap_section` paints the test-gap UI into an egui frame.
 
 use crate::metrics::testgap::TestGapReport;
-use crate::core::settings::ThemeConfig;
+use super::ThemeConfig;
 use super::ui_helpers::score_color;
 
 /// Draw the test gap section in the metrics panel.

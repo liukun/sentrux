@@ -4,7 +4,7 @@
 //! Uses continuous [0,1] scores with smooth color gradient.
 
 use crate::metrics::evo::EvolutionReport;
-use crate::core::settings::ThemeConfig;
+use super::ThemeConfig;
 use super::ui_helpers::score_color;
 
 /// Draw the evolution section in the metrics panel.

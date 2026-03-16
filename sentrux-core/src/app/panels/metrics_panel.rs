@@ -4,14 +4,14 @@
 //! evolution metrics (churn/bus factor/hotspots/coupling), test gaps,
 //! rules check, and what-if simulation for the selected file.
 
-use crate::app::state::AppState;
+use super::AppState;
 use crate::license;
 use super::activity_panel::draw_sep;
 use super::health_display::draw_health_section;
 use super::evolution_display::draw_evolution_section;
 use super::rules_display::draw_rules_section;
 use super::whatif_display::draw_whatif_section;
-use crate::core::settings::ThemeConfig;
+use super::ThemeConfig;
 
 /// Draw the metrics panel (left side) showing all analysis results.
 /// Always visible when a snapshot exists — no toggle.

@@ -5,6 +5,11 @@
 //! module cohesion. They form a natural cluster: `metrics_panel.rs`
 //! orchestrates the others, and most use `ui_helpers::score_color`.
 
+// Re-export commonly used types so sub-modules import from super::
+pub(crate) use crate::core::settings::ThemeConfig;
+pub(crate) use crate::core::snapshot::Snapshot;
+pub(crate) use crate::app::state::AppState;
+
 pub(crate) mod activity_panel;
 pub(crate) mod arch_display;
 pub(crate) mod dsm_panel;

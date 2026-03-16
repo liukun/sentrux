@@ -3,8 +3,7 @@
 //! Computes on-demand when a file is selected. The simulation is O(E) so it's
 //! fast enough for the UI thread (sub-millisecond for typical projects).
 
-use crate::core::snapshot::Snapshot;
-use crate::core::settings::ThemeConfig;
+use super::{Snapshot, ThemeConfig};
 use crate::metrics::whatif::{self, WhatIfAction, WhatIfResult};
 use std::sync::Arc;
 

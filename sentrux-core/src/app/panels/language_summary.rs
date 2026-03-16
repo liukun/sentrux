@@ -4,8 +4,7 @@
 //! and per-language statistics: files, functions, lines, import edges.
 
 use crate::analysis::lang_registry;
-use crate::core::snapshot::Snapshot;
-use crate::core::settings::ThemeConfig;
+use super::{Snapshot, ThemeConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 

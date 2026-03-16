@@ -5,7 +5,7 @@
 //! red→yellow→green color gradient.
 
 use crate::metrics::HealthReport;
-use crate::core::settings::ThemeConfig;
+use super::ThemeConfig;
 use super::ui_helpers::score_color;
 
 pub(crate) fn draw_health_section(ui: &mut egui::Ui, report: &HealthReport, tc: &ThemeConfig) {

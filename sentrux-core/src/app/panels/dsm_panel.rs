@@ -7,7 +7,7 @@
 //! - Click to select a file in the main treemap
 
 use crate::metrics::dsm::{self, DesignStructureMatrix, DsmStats};
-use crate::app::state::AppState;
+use super::AppState;
 
 /// Draw the DSM panel (left side).
 /// Returns true if a file was clicked (to highlight in treemap).

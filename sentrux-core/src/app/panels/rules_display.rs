@@ -6,7 +6,7 @@
 //! Key function: `draw_rules_section` paints the rules UI into an egui frame.
 
 use crate::metrics::rules::checks::{RuleCheckResult, Severity};
-use crate::core::settings::ThemeConfig;
+use super::ThemeConfig;
 
 /// Draw the rules check section in the metrics panel.
 pub(crate) fn draw_rules_section(ui: &mut egui::Ui, result: &RuleCheckResult, tc: &ThemeConfig) {

@@ -3,8 +3,7 @@
 //! Right-side panel showing recent watcher events and top-connected files.
 //! Health and architecture grades moved to the always-visible metrics panel (left).
 
-use crate::core::settings::ThemeConfig;
-use crate::app::state::AppState;
+use super::{ThemeConfig, AppState};
 use egui::{CursorIcon, Sense};
 use std::collections::HashMap;
 

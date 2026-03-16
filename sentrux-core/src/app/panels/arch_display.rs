@@ -3,7 +3,7 @@
 //! Shows architecture score and per-dimension metrics with continuous scores.
 
 use crate::metrics::arch::ArchReport;
-use crate::core::settings::ThemeConfig;
+use super::ThemeConfig;
 use super::ui_helpers::score_color;
 
 /// Draw the architecture report section in the activity panel.

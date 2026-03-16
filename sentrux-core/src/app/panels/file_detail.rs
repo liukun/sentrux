@@ -3,9 +3,7 @@
 //! Replaces the generic ACTIVITY panel when a file is selected.
 //! Shows everything a developer needs to understand a single file's role.
 
-use crate::app::state::AppState;
-use crate::core::settings::ThemeConfig;
-use crate::core::snapshot::Snapshot;
+use super::{AppState, ThemeConfig, Snapshot};
 use std::sync::Arc;
 
 /// Draw file detail section for the selected file.
