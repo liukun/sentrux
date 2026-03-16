@@ -57,7 +57,7 @@ fn draw_quality_signal(ui: &mut egui::Ui, report: &HealthReport, tc: &ThemeConfi
     ui.painter().text(
         egui::pos2(grade_rect.left() + 4.0, grade_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("Quality  {:.0}%", signal * 100.0),
+        format!("Quality  {}", (signal * 10000.0).round() as u32),
         egui::FontId::monospace(11.0), color,
     );
 
@@ -93,11 +93,11 @@ fn draw_root_cause_row(
         label, font.clone(), tc.text_secondary,
     );
 
-    // Score as colored percentage — no ceiling markers (ceiling is unknowable from snapshot)
+    // Score as integer 0-10000 — every point is one point
     let color = score_color(score);
     ui.painter().text(
         egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-        format!("{:.0}%", score * 100.0), font.clone(), color,
+        format!("{}", (score * 10000.0).round() as u32), font.clone(), color,
     );
 
     // Raw value

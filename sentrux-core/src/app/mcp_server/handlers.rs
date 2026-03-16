@@ -73,7 +73,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
 
     let result = json!({
         "scanned": path,
-        "quality_signal": health.quality_signal,
+        "quality_signal": (health.quality_signal * 10000.0).round() as u32,
         "files": snapshot.total_files,
         "lines": snapshot.total_lines,
         "import_edges": snapshot.import_graph.len()
@@ -119,15 +119,16 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         .map(|(name, _)| *name)
         .unwrap_or("none");
 
+    let s = |v: f64| -> u32 { (v * 10000.0).round() as u32 };
     let mut result = json!({
-        "quality_signal": h.quality_signal,
+        "quality_signal": s(h.quality_signal),
         "bottleneck": bottleneck,
         "root_causes": {
-            "modularity":  {"score": rc.modularity,  "raw": raw.modularity_q},
-            "acyclicity":  {"score": rc.acyclicity,  "raw": raw.cycle_count},
-            "depth":       {"score": rc.depth,       "raw": raw.max_depth},
-            "equality":    {"score": rc.equality,    "raw": raw.complexity_gini},
-            "redundancy":  {"score": rc.redundancy,  "raw": raw.redundancy_ratio}
+            "modularity":  {"score": s(rc.modularity),  "raw": raw.modularity_q},
+            "acyclicity":  {"score": s(rc.acyclicity),  "raw": raw.cycle_count},
+            "depth":       {"score": s(rc.depth),       "raw": raw.max_depth},
+            "equality":    {"score": s(rc.equality),    "raw": raw.complexity_gini},
+            "redundancy":  {"score": s(rc.redundancy),  "raw": raw.redundancy_ratio}
         },
         "total_import_edges": h.total_import_edges,
         "cross_module_edges": h.cross_module_edges
@@ -412,7 +413,7 @@ fn handle_session_start(_args: &Value, _tier: &Tier, state: &mut McpState) -> Re
     state.baseline = Some(b);
     Ok(json!({
         "status": "Baseline saved",
-        "quality_signal": signal,
+        "quality_signal": (signal * 10000.0).round() as u32,
         "message": "Call 'session_end' after making changes to see the diff"
     }))
 }
@@ -442,9 +443,9 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
 
     let result = json!({
         "pass": !diff.degraded,
-        "signal_before": diff.signal_before,
-        "signal_after": diff.signal_after,
-        "signal_delta": diff.signal_after - diff.signal_before,
+        "signal_before": (diff.signal_before * 10000.0).round() as i32,
+        "signal_after": (diff.signal_after * 10000.0).round() as i32,
+        "signal_delta": ((diff.signal_after - diff.signal_before) * 10000.0).round() as i32,
         "coupling_change": [diff.coupling_before, diff.coupling_after],
         "cycles_change": [diff.cycles_before, diff.cycles_after],
         "violations": diff.violations,
@@ -480,7 +481,7 @@ fn handle_rescan(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Va
 
     let result = json!({
         "status": "Rescanned",
-        "quality_signal": health.quality_signal,
+        "quality_signal": (health.quality_signal * 10000.0).round() as u32,
         "files": snapshot.total_files
     });
 
