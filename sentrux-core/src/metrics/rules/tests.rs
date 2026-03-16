@@ -57,8 +57,8 @@ no_god_files = true
     fn parse_full_rules() {
         let toml = r#"
 [constraints]
-max_grade = "C"
-max_coupling = "B"
+min_quality = 0.4
+max_coupling_score = 0.35
 max_cycles = 0
 max_cc = 20
 max_fn_lines = 80
@@ -86,9 +86,8 @@ to = "src/scanner.rs"
 reason = "Renderer must not know about scanning"
 "#;
         let config: RulesConfig = toml::from_str(toml).unwrap();
-        // max_grade was removed — min_quality is now used instead
-        // but this TOML still uses old format, so it will parse as None
-        assert!(config.constraints.min_quality.is_none());
+        assert!((config.constraints.min_quality.unwrap() - 0.4).abs() < 0.01);
+        assert!((config.constraints.max_coupling_score.unwrap() - 0.35).abs() < 0.01);
         assert_eq!(config.layers.len(), 3);
         assert_eq!(config.layers[0].name, "presentation");
         assert_eq!(config.boundaries.len(), 1);

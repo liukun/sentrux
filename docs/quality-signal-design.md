@@ -175,9 +175,9 @@ Practically: gaming one metric while tanking another cannot increase the geometr
 
 ### Step 4: Display
 
-GUI shows percentage: `Quality 73%` with pixel block progress bar and continuous red→yellow→green color gradient. No letter grades. No arbitrary boundaries.
+GUI shows integer on 0-10000 scale: `Quality 7342` with pixel block progress bar and continuous red→yellow→green color gradient. No letter grades. No percentages. No arbitrary boundaries. Every +1 is one point of real improvement.
 
-MCP returns raw float for AI agent: `"quality_signal": 0.73`
+MCP returns integer 0-10000 for AI agent: `"quality_signal": 7342`
 
 ## For AI Agents (MCP Interface)
 
@@ -185,13 +185,14 @@ MCP returns raw float for AI agent: `"quality_signal": 0.73`
 
 ```json
 {
-  "quality_signal": 0.73,
+  "quality_signal": 7342,
+  "bottleneck": "modularity",
   "root_causes": {
-    "modularity":  {"score": 0.67, "raw": 0.45},
-    "acyclicity":  {"score": 1.00, "raw": 0},
-    "depth":       {"score": 0.67, "raw": 4},
-    "equality":    {"score": 0.65, "raw": 0.35},
-    "redundancy":  {"score": 0.88, "raw": 0.12}
+    "modularity":  {"score": 6700, "raw": 0.45},
+    "acyclicity":  {"score": 10000, "raw": 0},
+    "depth":       {"score": 10000, "raw": 4},
+    "equality":    {"score": 6100, "raw": 0.35},
+    "redundancy":  {"score": 8800, "raw": 0.12}
   },
   "diagnostics": {
     "modularity": {
