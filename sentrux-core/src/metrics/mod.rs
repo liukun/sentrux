@@ -13,13 +13,16 @@ pub mod evo;      // evo/mod.rs + git_walker.rs
 pub mod rules;    // rules/mod.rs + checks.rs
 
 // ── Flat modules (remain at metrics root) ──
+pub mod cross_validation; // FREE: compression-based quality cross-check
 pub mod dsm;
 pub mod grading;
 pub mod root_causes;
 pub mod stability;
+pub mod temporal;           // PRO: dH/dt from git history
 pub mod testgap;
 pub mod types;
 pub mod whatif;
+pub mod whatif_root_causes; // PRO: what-if prediction using root causes
 
 pub use types::*;
 
