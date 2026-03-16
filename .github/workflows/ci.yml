@@ -67,13 +67,16 @@ jobs:
       - name: Install language grammars
         shell: bash
         run: |
-          # Download grammar bundle from latest release (not current build version)
+          # Download grammar bundle from LATEST release (which has grammars)
+          # NOT from current version (grammars may not be uploaded yet)
           PLATFORM=$([ "$RUNNER_OS" = "macOS" ] && echo "darwin-arm64" || echo "linux-x86_64")
           URL="https://github.com/sentrux/sentrux/releases/latest/download/grammars-${PLATFORM}.tar.gz"
           mkdir -p ~/.sentrux/plugins
           curl -fsSL "$URL" -o /tmp/grammars.tar.gz && tar xzf /tmp/grammars.tar.gz -C ~/.sentrux/plugins/ || echo "Grammar download failed — tests requiring grammars will skip"
-          # Sync configs from embedded data
-          cargo run -- --version || true
+          # Sync embedded plugin configs (TOML) without triggering grammar download
+          # SENTRUX_SKIP_GRAMMAR_DOWNLOAD prevents the app from overwriting
+          # already-installed grammars with a 404 from the current version tag
+          SENTRUX_SKIP_GRAMMAR_DOWNLOAD=1 cargo run -- --version || true
 
       - name: Test
         run: cargo test

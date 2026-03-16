@@ -826,6 +826,12 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
 ///
 /// Handles: first launch, upgrade, accidental deletion.
 fn ensure_grammars_installed() {
+    // CI sets this to prevent overwriting already-installed grammars
+    // with a 404 from a version tag that doesn't have grammar assets yet
+    if std::env::var("SENTRUX_SKIP_GRAMMAR_DOWNLOAD").is_ok() {
+        return;
+    }
+
     let dir = match sentrux_core::analysis::plugin::plugins_dir() {
         Some(d) => d,
         None => return,
