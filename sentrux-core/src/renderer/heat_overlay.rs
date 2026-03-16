@@ -17,36 +17,22 @@ fn draw_ripple(painter: &egui::Painter, screen_rect: egui::Rect, progress: f64) 
     painter.rect_stroke(expanded, CornerRadius::ZERO, Stroke::new(w, ripple_color), StrokeKind::Outside);
 }
 
-/// Draw heat glow overlay for a single file rect.
-/// Color depends on event kind: teal mint for create, honey amber for modify.
-/// Alpha adapts to ensure visibility against any block background color.
-fn draw_heat_glow(painter: &egui::Painter, screen_rect: egui::Rect, heat_value: f64, kind: heat::EventKind, bg_color: Color32) {
+/// Draw heat glow overlay for a single file rect (semi-transparent warm tint).
+fn draw_heat_glow(painter: &egui::Painter, screen_rect: egui::Rect, heat_value: f64) {
     if heat_value <= 0.05 { return; }
-    let base = heat::heat_color_for_kind(heat_value, kind);
-
-    // Adaptive alpha: increase intensity when glow color is similar to background.
-    // Compute hue distance between glow and bg — similar hues need more alpha to be visible.
-    let glow_lum = 0.2126 * base.r() as f32 / 255.0 + 0.7152 * base.g() as f32 / 255.0 + 0.0722 * base.b() as f32 / 255.0;
-    let bg_lum = 0.2126 * bg_color.r() as f32 / 255.0 + 0.7152 * bg_color.g() as f32 / 255.0 + 0.0722 * bg_color.b() as f32 / 255.0;
-    let lum_contrast = (glow_lum - bg_lum).abs();
-
-    // Low contrast (similar colors) → boost alpha. High contrast → normal alpha.
-    let base_alpha = (heat_value * 16.0).min(80.0);
-    let boost = if lum_contrast < 0.15 { 1.8 } else if lum_contrast < 0.3 { 1.3 } else { 1.0 };
-    let alpha = (base_alpha * boost).min(140.0) as u8;
-
-    let glow = Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), alpha);
+    // Scale for full 0-5 range: 5.0 -> alpha 80. [ref:4f5a9de5]
+    let alpha = (heat_value * 16.0).min(80.0) as u8;
+    let glow = Color32::from_rgba_unmultiplied(255, 160, 40, alpha);
     painter.rect_filled(screen_rect, CornerRadius::ZERO, glow);
 }
 
-/// Draw a single activity trail dot for a file — color matches event kind.
-fn draw_trail_dot(painter: &egui::Painter, screen_rect: egui::Rect, heat_value: f64, dot_radius: f32, kind: heat::EventKind) {
+/// Draw a single activity trail dot for a file.
+fn draw_trail_dot(painter: &egui::Painter, screen_rect: egui::Rect, heat_value: f64, dot_radius: f32) {
     let alpha = (heat_value * 16.0).min(80.0) as u8;
     if alpha <= 10 { return; }
-    let base = heat::heat_color_for_kind(heat_value, kind);
     let dot_pos = egui::pos2(screen_rect.left() + 2.0, screen_rect.top() + 2.0);
     let dot_rect = egui::Rect::from_min_size(dot_pos, egui::vec2(dot_radius * 2.0, dot_radius * 2.0));
-    painter.rect_filled(dot_rect, CornerRadius::ZERO, Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), alpha));
+    painter.rect_filled(dot_rect, CornerRadius::ZERO, Color32::from_rgba_unmultiplied(255, 120, 30, alpha));
 }
 
 /// Draw activity trail: fading glow markers for recent changes.
@@ -75,8 +61,7 @@ fn draw_activity_trail(
         let screen_rect = vp.world_to_screen_rect(r.x, r.y, r.w, r.h, canvas_origin);
         if screen_rect.width() < 2.0 { continue; }
         let h = ctx.heat.get_heat(path, ctx.frame_instant, ctx.settings.heat_half_life);
-        let kind = ctx.heat.get_kind(path);
-        draw_trail_dot(painter, screen_rect, h, ctx.settings.trail_dot_radius, kind);
+        draw_trail_dot(painter, screen_rect, h, ctx.settings.trail_dot_radius);
     }
 }
 
@@ -85,7 +70,6 @@ fn draw_file_heat(
     painter: &egui::Painter,
     screen_rect: egui::Rect,
     path: &str,
-    bg_color: Color32,
     ctx: &RenderContext,
 ) {
     if let Some(progress) = ctx.heat.get_ripple(path, ctx.frame_instant, ctx.settings.ripple_duration) {
@@ -93,8 +77,7 @@ fn draw_file_heat(
     }
     if ctx.color_mode != ColorMode::Heat {
         let h = ctx.heat.get_heat(path, ctx.frame_instant, ctx.settings.heat_half_life);
-        let kind = ctx.heat.get_kind(path);
-        draw_heat_glow(painter, screen_rect, h, kind, bg_color);
+        draw_heat_glow(painter, screen_rect, h);
     }
 }
 
@@ -118,10 +101,7 @@ pub(crate) fn draw_heat_overlays(
             if r.kind != RectKind::File || !vp.is_visible(r.x, r.y, r.w, r.h) { continue; }
             let screen_rect = vp.world_to_screen_rect(r.x, r.y, r.w, r.h, canvas_origin);
             if screen_rect.width() < 1.0 || screen_rect.height() < 1.0 { continue; }
-            // Default dark background — correct for most blocks in dark theme.
-            // Heat glow alpha auto-boosts when contrast is low.
-            let bg_color = Color32::from_rgb(20, 25, 35);
-            draw_file_heat(painter, screen_rect, &r.path, bg_color, ctx);
+            draw_file_heat(painter, screen_rect, &r.path, ctx);
         }
     }
 

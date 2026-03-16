@@ -14,15 +14,6 @@ const MAX_HEAT: f64 = 5.0;
 /// Maximum number of trail entries retained (prevents unbounded growth).
 const MAX_TRAIL: usize = 500;
 
-/// File system event kind — determines heat color.
-#[derive(Clone, Copy, PartialEq)]
-pub enum EventKind {
-    /// New file created — teal mint glow
-    Create,
-    /// Existing file modified — honey amber glow
-    Modify,
-}
-
 /// Per-file heat entry
 struct HeatEntry {
     /// Initial heat level at last_change time (accumulated from rapid edits)
@@ -33,8 +24,6 @@ struct HeatEntry {
     last_change: Instant,
     /// When the ripple animation started (None = no active ripple)
     ripple_start: Option<Instant>,
-    /// What kind of event triggered this heat
-    kind: EventKind,
 }
 
 /// Tracks per-file heat (recent edit activity) with exponential decay.
@@ -65,22 +54,14 @@ impl HeatTracker {
     }
 
     /// Record a file change — boosts heat to 1.0 and starts a ripple.
-    /// `kind` determines the glow color (teal mint for create, amber for modify).
     pub fn record_change(&mut self, path: &str, cfg: &HeatConfig) {
-        self.record_change_with_kind(path, cfg, EventKind::Modify);
-    }
-
-    /// Record a file change with specific event kind.
-    pub fn record_change_with_kind(&mut self, path: &str, cfg: &HeatConfig, kind: EventKind) {
         let now = Instant::now();
         let entry = self.entries.entry(path.to_string()).or_insert(HeatEntry {
             initial_heat: 0.0,
             heat: 0.0,
             last_change: now,
             ripple_start: None,
-            kind,
         });
-        entry.kind = kind;
         // Compute live-decayed heat before accumulating, to avoid using the
         // stale cached value from the last tick(). [ref:4f5a9de5]
         let dt = now.duration_since(entry.last_change).as_secs_f64();
@@ -159,12 +140,6 @@ impl HeatTracker {
         })
     }
 
-    /// Get event kind for a file (Create or Modify). Returns Modify as default.
-    #[inline]
-    pub fn get_kind(&self, path: &str) -> EventKind {
-        self.entries.get(path).map_or(EventKind::Modify, |e| e.kind)
-    }
-
     /// True if any file has visually significant heat (above rendering threshold).
     /// Prevents infinite repaint loops from near-zero heat values.
     pub fn is_active(&self) -> bool {
@@ -196,43 +171,34 @@ impl HeatTracker {
     }
 }
 
-/// Heat value + event kind → color.
-///
-/// Create: teal mint (#56d4a4) — fresh, cool, "something new appeared"
-/// Modify: honey amber (#d4a856) → warm gold → deep amber as heat builds
-///
-/// Palette A (Refined Terminal): 120°+ hue separation, all WCAG AA on dark bg.
+/// Heat value → color (cool blue → warm yellow → hot red).
+/// BUG 12 fix: use 3-stop gradient across the full [0,1] range instead of
+/// saturating at t=0.5. Previously heat values > 2.5 all mapped to nearly
+/// the same red, compressing half the color space into identical output.
+/// New stops: blue(0) → orange(0.33) → yellow(0.66) → red(1.0). [ref:93cf32d4]
 pub fn heat_color(heat: f64) -> Color32 {
-    heat_color_for_kind(heat, EventKind::Modify)
-}
-
-/// Heat color with event kind differentiation.
-pub fn heat_color_for_kind(heat: f64, kind: EventKind) -> Color32 {
     let t = (heat / MAX_HEAT).clamp(0.0, 1.0) as f32;
-    match kind {
-        EventKind::Create => {
-            // Teal mint: #56d4a4 at full heat → fades toward dark
-            let r = (20.0 + t * 66.0) as u8;   // 20 → 86
-            let g = (30.0 + t * 182.0) as u8;   // 30 → 212
-            let b = (25.0 + t * 139.0) as u8;   // 25 → 164
-            Color32::from_rgb(r, g, b)
-        }
-        EventKind::Modify => {
-            // Honey amber: #d4a856 at low → warm gold → deep amber at high
-            if t < 0.5 {
-                let u = t * 2.0;
-                let r = (40.0 + u * 172.0) as u8;  // 40 → 212
-                let g = (40.0 + u * 128.0) as u8;  // 40 → 168
-                let b = (30.0 + u * 56.0) as u8;   // 30 → 86
-                Color32::from_rgb(r, g, b)
-            } else {
-                let u = (t - 0.5) * 2.0;
-                let r = (212.0 + u * 43.0) as u8;  // 212 → 255
-                let g = (168.0 - u * 48.0) as u8;  // 168 → 120
-                let b = (86.0 - u * 56.0) as u8;   // 86 → 30
-                Color32::from_rgb(r, g, b)
-            }
-        }
+    if t < 0.33 {
+        // blue → orange
+        let u = t / 0.33;
+        let r = (40.0 + u * 215.0) as u8;
+        let g = (60.0 + u * 100.0) as u8;
+        let b = (180.0 - u * 180.0) as u8;
+        Color32::from_rgb(r, g, b)
+    } else if t < 0.66 {
+        // orange → yellow
+        let u = (t - 0.33) / 0.33;
+        let r = 255;
+        let g = (160.0 + u * 60.0) as u8; // 160 → 220
+        let b = (0.0 + u * 20.0) as u8;   // 0 → 20
+        Color32::from_rgb(r, g, b)
+    } else {
+        // yellow → deep red
+        let u = (t - 0.66) / 0.34;
+        let r = 255;
+        let g = (220.0 - u * 190.0) as u8; // 220 → 30
+        let b = (20.0 - u * 20.0) as u8;   // 20 → 0
+        Color32::from_rgb(r, g, b)
     }
 }
 

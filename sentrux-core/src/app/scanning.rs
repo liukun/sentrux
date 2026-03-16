@@ -190,12 +190,7 @@ impl SentruxApp {
     fn poll_watcher_messages(&mut self, ctx: &egui::Context) {
         let mut had_watch_events = false;
         while let Ok(fe) = self.watch_rx.try_recv() {
-            let heat_kind = if fe.kind == "create" {
-                crate::core::heat::EventKind::Create
-            } else {
-                crate::core::heat::EventKind::Modify
-            };
-            self.state.heat.record_change_with_kind(&fe.path, &self.state.settings.heat_config(), heat_kind);
+            self.state.heat.record_change(&fe.path, &self.state.settings.heat_config());
             if !fe.is_dir {
                 self.state.record_activity(fe.path.clone(), fe.kind.clone());
             }
