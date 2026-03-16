@@ -145,8 +145,15 @@ pub fn check_rules(
     let c = &config.constraints;
 
     // ── Constraint checks (each helper returns Option<RuleViolation>) ──
-    let checks: [(&dyn Fn() -> Option<RuleViolation>, bool); 8] = [
+    let checks: [(&dyn Fn() -> Option<RuleViolation>, bool); 13] = [
+        // Root cause gates
         (&|| check_min_quality(c, health), c.min_quality.is_some()),
+        (&|| check_min_modularity(c, health), c.min_modularity.is_some()),
+        (&|| check_min_acyclicity(c, health), c.min_acyclicity.is_some()),
+        (&|| check_min_depth(c, health), c.min_depth.is_some()),
+        (&|| check_min_equality(c, health), c.min_equality.is_some()),
+        (&|| check_min_redundancy(c, health), c.min_redundancy.is_some()),
+        // Specific engineering limits
         (&|| check_max_coupling(c, health), c.max_coupling_score.is_some()),
         (&|| check_max_cycles(c, health), c.max_cycles.is_some()),
         (&|| check_max_cc(c, health), c.max_cc.is_some()),

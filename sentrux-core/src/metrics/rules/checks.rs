@@ -9,10 +9,27 @@ use serde::Deserialize;
 
 /// Structural constraints parsed from `.sentrux/rules.toml`.
 /// Each field is optional — only set constraints are checked.
+///
+/// Two levels of gating:
+///   1. Root cause gates — minimum per-dimension scores (0.0-1.0)
+///   2. Specific limits — hard engineering constraints on individual metrics
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Constraints {
-    /// Required minimum quality signal (e.g., 0.6)
+    // ── Root cause gates (minimum scores, 0.0-1.0) ──
+    /// Required minimum quality signal (geometric mean of 5 root causes)
     pub min_quality: Option<f64>,
+    /// Required minimum modularity score (Newman's Q normalized)
+    pub min_modularity: Option<f64>,
+    /// Required minimum acyclicity score (1.0 = zero cycles)
+    pub min_acyclicity: Option<f64>,
+    /// Required minimum depth score (1.0 = shallow)
+    pub min_depth: Option<f64>,
+    /// Required minimum equality score (1.0 = evenly distributed complexity)
+    pub min_equality: Option<f64>,
+    /// Required minimum redundancy score (1.0 = no dead/duplicate code)
+    pub min_redundancy: Option<f64>,
+
+    // ── Specific engineering limits ──
     /// Required maximum coupling score (e.g., 0.35)
     pub max_coupling_score: Option<f64>,
     /// Maximum allowed circular dependency cycles
@@ -35,6 +52,11 @@ impl Constraints {
     pub fn count_active(&self) -> usize {
         let mut n = 0;
         if self.min_quality.is_some() { n += 1; }
+        if self.min_modularity.is_some() { n += 1; }
+        if self.min_acyclicity.is_some() { n += 1; }
+        if self.min_depth.is_some() { n += 1; }
+        if self.min_equality.is_some() { n += 1; }
+        if self.min_redundancy.is_some() { n += 1; }
         if self.max_coupling_score.is_some() { n += 1; }
         if self.max_cycles.is_some() { n += 1; }
         if self.max_cc.is_some() { n += 1; }
@@ -46,10 +68,14 @@ impl Constraints {
     }
 
     /// Merge language-specific overrides into this constraint set.
-    /// For each field, the override takes precedence if set.
     pub fn merge(&self, override_with: &Constraints) -> Constraints {
         Constraints {
             min_quality: override_with.min_quality.or(self.min_quality),
+            min_modularity: override_with.min_modularity.or(self.min_modularity),
+            min_acyclicity: override_with.min_acyclicity.or(self.min_acyclicity),
+            min_depth: override_with.min_depth.or(self.min_depth),
+            min_equality: override_with.min_equality.or(self.min_equality),
+            min_redundancy: override_with.min_redundancy.or(self.min_redundancy),
             max_coupling_score: override_with.max_coupling_score.or(self.max_coupling_score),
             max_cycles: override_with.max_cycles.or(self.max_cycles),
             max_cc: override_with.max_cc.or(self.max_cc),
@@ -208,6 +234,47 @@ pub fn check_no_god_files(c: &Constraints, health: &HealthReport) -> Option<Rule
     } else {
         None
     }
+}
+
+// ── Root cause gates ──
+
+fn check_root_cause(name: &str, score: f64, min: Option<f64>) -> Option<RuleViolation> {
+    let min = min?;
+    if score < min {
+        Some(RuleViolation {
+            rule: format!("min_{}", name),
+            severity: Severity::Error,
+            message: format!("{} score {:.4} below minimum required {:.4}", name, score, min),
+            files: vec![],
+        })
+    } else {
+        None
+    }
+}
+
+/// Check minimum modularity score.
+pub fn check_min_modularity(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
+    check_root_cause("modularity", health.root_cause_scores.modularity, c.min_modularity)
+}
+
+/// Check minimum acyclicity score.
+pub fn check_min_acyclicity(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
+    check_root_cause("acyclicity", health.root_cause_scores.acyclicity, c.min_acyclicity)
+}
+
+/// Check minimum depth score.
+pub fn check_min_depth(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
+    check_root_cause("depth", health.root_cause_scores.depth, c.min_depth)
+}
+
+/// Check minimum equality score.
+pub fn check_min_equality(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
+    check_root_cause("equality", health.root_cause_scores.equality, c.min_equality)
+}
+
+/// Check minimum redundancy score.
+pub fn check_min_redundancy(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
+    check_root_cause("redundancy", health.root_cause_scores.redundancy, c.min_redundancy)
 }
 
 /// Check maximum upward dependency violations.
