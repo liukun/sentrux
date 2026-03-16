@@ -47,6 +47,87 @@ pub(crate) fn compute_lang_stats(snap: &Snapshot) -> Vec<(String, LangStat)> {
     sorted
 }
 
+/// Draw a single label-value row at standard height.
+fn draw_stat_row(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &str,
+    font: &egui::FontId,
+    tc: &ThemeConfig,
+) {
+    let (rect, _) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), 13.0), egui::Sense::hover(),
+    );
+    let cy = rect.center().y;
+    ui.painter().text(
+        egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
+        label, font.clone(), tc.text_secondary,
+    );
+    ui.painter().text(
+        egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
+        value, font.clone(), tc.text_primary,
+    );
+}
+
+/// Draw summary rows: plugin count, language count, edge totals.
+fn draw_summary_rows(
+    ui: &mut egui::Ui,
+    snap: &Arc<Snapshot>,
+    lang_count: usize,
+    font: &egui::FontId,
+    tc: &ThemeConfig,
+) {
+    draw_stat_row(ui, "plugins loaded", &format!("{}", lang_registry::plugin_count()), font, tc);
+    draw_stat_row(ui, "languages in project", &format!("{}", lang_count), font, tc);
+    draw_stat_row(ui, "import edges", &format!("{}", snap.import_graph.len()), font, tc);
+    draw_stat_row(ui, "call edges", &format!("{}", snap.call_graph.len()), font, tc);
+    if !snap.inherit_graph.is_empty() {
+        draw_stat_row(ui, "inherit edges", &format!("{}", snap.inherit_graph.len()), font, tc);
+    }
+}
+
+/// Draw a single language row: color dot, name, file count, detail line.
+fn draw_lang_row(
+    ui: &mut egui::Ui,
+    lang: &str,
+    stat: &LangStat,
+    font: &egui::FontId,
+    font_small: &egui::FontId,
+    tc: &ThemeConfig,
+) {
+    let profile = lang_registry::profile(lang);
+    let color = egui::Color32::from_rgb(
+        profile.color_rgb[0], profile.color_rgb[1], profile.color_rgb[2],
+    );
+    let (rect, _) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), 14.0), egui::Sense::hover(),
+    );
+    let cy = rect.center().y;
+    ui.painter().circle_filled(egui::pos2(rect.left() + 7.0, cy), 3.0, color);
+    ui.painter().text(
+        egui::pos2(rect.left() + 14.0, cy), egui::Align2::LEFT_CENTER,
+        lang, font.clone(), tc.text_primary,
+    );
+    ui.painter().text(
+        egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
+        format!("{} files", stat.files), font_small.clone(), tc.text_secondary,
+    );
+
+    let (rect, _) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), 12.0), egui::Sense::hover(),
+    );
+    let cy = rect.center().y;
+    let detail = if stat.import_edges > 0 {
+        format!("{} functions  {} lines  {} imports", stat.funcs, stat.lines, stat.import_edges)
+    } else {
+        format!("{} functions  {} lines", stat.funcs, stat.lines)
+    };
+    ui.painter().text(
+        egui::pos2(rect.left() + 14.0, cy), egui::Align2::LEFT_CENTER,
+        detail, font_small.clone(), tc.text_secondary.linear_multiply(0.7),
+    );
+}
+
 /// Draw the language & plugin summary section.
 /// `lang_stats` should be pre-computed and cached (call `compute_lang_stats` once per scan).
 pub(crate) fn draw_language_summary(
@@ -55,150 +136,26 @@ pub(crate) fn draw_language_summary(
     lang_stats: &[(String, LangStat)],
     tc: &ThemeConfig,
 ) {
-    let row_h = 13.0;
     let font = egui::FontId::monospace(9.0);
     let font_small = egui::FontId::monospace(8.0);
 
-    // Header
-    ui.label(
-        egui::RichText::new("LANGUAGES")
-            .monospace().size(9.0).color(tc.section_label),
-    );
+    ui.label(egui::RichText::new("LANGUAGES").monospace().size(9.0).color(tc.section_label));
     ui.add_space(2.0);
 
-    // Plugin count
-    let total_plugins = lang_registry::plugin_count();
-    let langs_used = lang_stats.len();
-
-    let (rect, _) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
-    );
-    let cy = rect.center().y;
-    ui.painter().text(
-        egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
-        "plugins loaded", font.clone(), tc.text_secondary,
-    );
-    ui.painter().text(
-        egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-        format!("{}", total_plugins), font.clone(), tc.text_primary,
-    );
-
-    let (rect, _) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
-    );
-    let cy = rect.center().y;
-    ui.painter().text(
-        egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
-        "languages in project", font.clone(), tc.text_secondary,
-    );
-    ui.painter().text(
-        egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-        format!("{}", langs_used), font.clone(), tc.text_primary,
-    );
-
-    // Graph edge totals
-    let total_imports = snap.import_graph.len();
-    let total_calls = snap.call_graph.len();
-    let total_inherit = snap.inherit_graph.len();
-
-    let (rect, _) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
-    );
-    let cy = rect.center().y;
-    ui.painter().text(
-        egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
-        "import edges", font.clone(), tc.text_secondary,
-    );
-    ui.painter().text(
-        egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-        format!("{}", total_imports), font.clone(), tc.text_primary,
-    );
-
-    let (rect, _) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
-    );
-    let cy = rect.center().y;
-    ui.painter().text(
-        egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
-        "call edges", font.clone(), tc.text_secondary,
-    );
-    ui.painter().text(
-        egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-        format!("{}", total_calls), font.clone(), tc.text_primary,
-    );
-
-    if total_inherit > 0 {
-        let (rect, _) = ui.allocate_exact_size(
-            egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
-        );
-        let cy = rect.center().y;
-        ui.painter().text(
-            egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
-            "inherit edges", font.clone(), tc.text_secondary,
-        );
-        ui.painter().text(
-            egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-            format!("{}", total_inherit), font.clone(), tc.text_primary,
-        );
-    }
-
+    draw_summary_rows(ui, snap, lang_stats.len(), &font, tc);
     ui.add_space(4.0);
 
-    // Per-language breakdown
     for (lang, stat) in lang_stats {
-        let profile = lang_registry::profile(lang);
-        let color = egui::Color32::from_rgb(
-            profile.color_rgb[0], profile.color_rgb[1], profile.color_rgb[2],
-        );
-
-        // Language name row with color dot
-        let (rect, _) = ui.allocate_exact_size(
-            egui::vec2(ui.available_width(), row_h + 1.0), egui::Sense::hover(),
-        );
-        let cy = rect.center().y;
-
-        // Color dot
-        ui.painter().circle_filled(
-            egui::pos2(rect.left() + 7.0, cy), 3.0, color,
-        );
-
-        // Language name
-        ui.painter().text(
-            egui::pos2(rect.left() + 14.0, cy), egui::Align2::LEFT_CENTER,
-            lang, font.clone(), tc.text_primary,
-        );
-
-        // File count
-        ui.painter().text(
-            egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-            format!("{} files", stat.files), font_small.clone(), tc.text_secondary,
-        );
-
-        // Detail row: funcs, lines, edges
-        let (rect, _) = ui.allocate_exact_size(
-            egui::vec2(ui.available_width(), row_h - 1.0), egui::Sense::hover(),
-        );
-        let cy = rect.center().y;
-        let detail = if stat.import_edges > 0 {
-            format!("{} functions  {} lines  {} imports", stat.funcs, stat.lines, stat.import_edges)
-        } else {
-            format!("{} functions  {} lines", stat.funcs, stat.lines)
-        };
-        ui.painter().text(
-            egui::pos2(rect.left() + 14.0, cy), egui::Align2::LEFT_CENTER,
-            detail, font_small.clone(),
-            tc.text_secondary.linear_multiply(0.7),
-        );
+        draw_lang_row(ui, lang, stat, &font, &font_small, tc);
     }
 
-    // Show failed plugins if any
     let failed = lang_registry::failed_plugins();
     if !failed.is_empty() {
         ui.add_space(4.0);
         ui.painter().text(
             egui::pos2(4.0, ui.cursor().top()), egui::Align2::LEFT_TOP,
             format!("{} plugin(s) failed", failed.len()),
-            font_small.clone(), egui::Color32::from_rgb(180, 80, 60),
+            font_small, egui::Color32::from_rgb(180, 80, 60),
         );
     }
 }

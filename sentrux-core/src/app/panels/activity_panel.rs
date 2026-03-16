@@ -250,6 +250,46 @@ fn ensure_top_connections_cache(state: &mut AppState) {
     }
 }
 
+/// Draw the update availability indicator at the top of the panel.
+fn draw_update_indicator(ui: &mut egui::Ui, tc: &ThemeConfig) {
+    if let Some(latest) = crate::app::update_check::available_update() {
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(format!("  v{} available", latest))
+                    .monospace().size(9.0)
+                    .color(egui::Color32::from_rgb(115, 201, 145)),
+            ).on_hover_text("brew upgrade sentrux");
+        });
+        draw_sep(ui, tc, 2.0);
+        ui.ctx().request_repaint();
+    }
+}
+
+/// Draw the file detail header with deselect button, and the detail content.
+fn draw_file_detail_section(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConfig) {
+    if state.selected_path.is_none() { return; }
+    draw_sep(ui, tc, 4.0);
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("┌ FILE DETAIL")
+            .monospace().size(10.0).color(tc.section_label));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let deselect = ui.add(
+                egui::Button::new(egui::RichText::new("×")
+                    .monospace().size(11.0).color(tc.text_secondary))
+                .fill(egui::Color32::TRANSPARENT)
+                .stroke(egui::Stroke::NONE));
+            if deselect.clicked() { state.selected_path = None; }
+            deselect.on_hover_cursor(CursorIcon::PointingHand)
+                .on_hover_text("Deselect file");
+        });
+    });
+    draw_sep(ui, tc, 2.0);
+    if let Some(snap) = &state.snapshot {
+        let snap_clone = snap.clone();
+        super::file_detail::draw_file_detail(ui, state, &snap_clone, tc);
+    }
+}
+
 pub fn draw_activity_panel(ctx: &egui::Context, state: &mut AppState) -> bool {
     let mut clicked = false;
     let tc = state.theme_config.clone();
@@ -263,77 +303,34 @@ pub fn draw_activity_panel(ctx: &egui::Context, state: &mut AppState) -> bool {
             .inner_margin(egui::Margin::same(4))
             .stroke(egui::Stroke::new(1.0, tc.section_border)))
         .show(ctx, |ui| {
-            // Update indicator — top of right panel
-            if let Some(latest) = crate::app::update_check::available_update() {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("  v{} available", latest))
-                            .monospace()
-                            .size(9.0)
-                            .color(egui::Color32::from_rgb(115, 201, 145)),
-                    ).on_hover_text("brew upgrade sentrux");
-                });
-                draw_sep(ui, &tc, 2.0);
-                ui.ctx().request_repaint();
-            }
+            draw_update_indicator(ui, &tc);
 
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    // Section 1: Language summary (always visible)
                     if let Some(snap) = &state.snapshot {
                         super::language_summary::draw_language_summary(
                             ui, snap, &state.lang_stats, &tc);
                         draw_sep(ui, &tc, 4.0);
                     }
 
-                    // Section 2: Top connections
                     ensure_top_connections_cache(state);
                     let top_cache = state.top_connections_cache.take();
                     let top: &[(String, usize)] = match &top_cache {
                         Some((_, _, v)) => v.as_slice(),
                         None => &[],
                     };
-                    if draw_top_connections(ui, top, state, &tc) {
-                        clicked = true;
-                    }
+                    if draw_top_connections(ui, top, state, &tc) { clicked = true; }
                     state.top_connections_cache = top_cache;
 
-                    // Section 3: Recent activity
                     if !state.recent_activity.is_empty() {
-                        if draw_activity_scroll(ui, state, &tc) {
-                            clicked = true;
-                        }
+                        if draw_activity_scroll(ui, state, &tc) { clicked = true; }
                     }
 
-                    // Section 4: File detail (bottom, only when file selected)
-                    if state.selected_path.is_some() {
-                        draw_sep(ui, &tc, 4.0);
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new("┌ FILE DETAIL")
-                                .monospace().size(10.0).color(tc.section_label));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let deselect = ui.add(
-                                    egui::Button::new(egui::RichText::new("×")
-                                        .monospace().size(11.0).color(tc.text_secondary))
-                                    .fill(egui::Color32::TRANSPARENT)
-                                    .stroke(egui::Stroke::NONE));
-                                if deselect.clicked() { state.selected_path = None; }
-                                deselect.on_hover_cursor(CursorIcon::PointingHand)
-                                    .on_hover_text("Deselect file");
-                            });
-                        });
-                        draw_sep(ui, &tc, 2.0);
-                        if let Some(snap) = &state.snapshot {
-                            let snap_clone = snap.clone();
-                            super::file_detail::draw_file_detail(ui, state, &snap_clone, &tc);
-                        }
-                    }
+                    draw_file_detail_section(ui, state, &tc);
                 });
         });
 
-    // Remove the old "(no data)" display that had mismatched braces
-    // The panel always shows language stats at minimum
     clicked
 }
 
