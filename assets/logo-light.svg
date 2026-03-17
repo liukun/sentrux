@@ -1,10 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48">
-  <rect x="2" y="2" width="20" height="24" rx="2" fill="#00a88a" opacity="0.8"/>
-  <rect x="24" y="2" width="22" height="11" rx="2" fill="#00a88a" opacity="0.5"/>
-  <rect x="24" y="15" width="22" height="11" rx="2" fill="#00a88a" opacity="0.3"/>
-  <rect x="2" y="28" width="14" height="18" rx="2" fill="#00a88a" opacity="0.5"/>
-  <rect x="18" y="28" width="28" height="8" rx="2" fill="#00a88a" opacity="0.4"/>
-  <rect x="18" y="38" width="16" height="8" rx="2" fill="#00a88a" opacity="0.25"/>
-  <rect x="36" y="38" width="10" height="8" rx="2" fill="#00a88a" opacity="0.15"/>
-  <text x="56" y="32" font-family="'Instrument Sans', -apple-system, sans-serif" font-size="24" font-weight="700" fill="#111111" letter-spacing="-0.5">sentrux</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="220" height="48">
+  <!-- sentrux — Entropy Arrow: ░▒▓██ — chaos → order -->
+  <!-- Each block = 4col × 5row pixel grid, 3×3 pixels, 4px pitch -->
+  <!-- ░ 25% → ▒ 50% → ▓ 75% → █ 100% → █ 100% -->
+
+  <!-- ░ Light shade (25% fill) — chaos, scattered -->
+  <rect x="8" y="14" width="3" height="3" fill="#00a88a"/>
+  <rect x="16" y="18" width="3" height="3" fill="#00a88a"/>
+  <rect x="4" y="22" width="3" height="3" fill="#00a88a"/>
+  <rect x="12" y="26" width="3" height="3" fill="#00a88a"/>
+  <rect x="8" y="30" width="3" height="3" fill="#00a88a"/>
+
+  <!-- ▒ Medium shade (50% fill) — emerging pattern -->
+  <rect x="22" y="14" width="3" height="3" fill="#00a88a"/>
+  <rect x="30" y="14" width="3" height="3" fill="#00a88a"/>
+  <rect x="26" y="18" width="3" height="3" fill="#00a88a"/>
+  <rect x="34" y="18" width="3" height="3" fill="#00a88a"/>
+  <rect x="22" y="22" width="3" height="3" fill="#00a88a"/>
+  <rect x="30" y="22" width="3" height="3" fill="#00a88a"/>
+  <rect x="26" y="26" width="3" height="3" fill="#00a88a"/>
+  <rect x="34" y="26" width="3" height="3" fill="#00a88a"/>
+  <rect x="22" y="30" width="3" height="3" fill="#00a88a"/>
+  <rect x="30" y="30" width="3" height="3" fill="#00a88a"/>
+
+  <!-- ▓ Dark shade (75% fill) — almost ordered -->
+  <rect x="40" y="14" width="3" height="3" fill="#00a88a"/>
+  <rect x="44" y="14" width="3" height="3" fill="#00a88a"/>
+  <rect x="52" y="14" width="3" height="3" fill="#00a88a"/>
+  <rect x="40" y="18" width="3" height="3" fill="#00a88a"/>
+  <rect x="48" y="18" width="3" height="3" fill="#00a88a"/>
+  <rect x="52" y="18" width="3" height="3" fill="#00a88a"/>
+  <rect x="40" y="22" width="3" height="3" fill="#00a88a"/>
+  <rect x="44" y="22" width="3" height="3" fill="#00a88a"/>
+  <rect x="48" y="22" width="3" height="3" fill="#00a88a"/>
+  <rect x="44" y="26" width="3" height="3" fill="#00a88a"/>
+  <rect x="48" y="26" width="3" height="3" fill="#00a88a"/>
+  <rect x="52" y="26" width="3" height="3" fill="#00a88a"/>
+  <rect x="40" y="30" width="3" height="3" fill="#00a88a"/>
+  <rect x="44" y="30" width="3" height="3" fill="#00a88a"/>
+  <rect x="52" y="30" width="3" height="3" fill="#00a88a"/>
+
+  <!-- █ Full block — ordered (solid) -->
+  <rect x="58" y="14" width="15" height="19" fill="#00a88a"/>
+
+  <!-- █ Full block — crystallized (solid) -->
+  <rect x="77" y="14" width="15" height="19" fill="#00a88a"/>
+
+  <!-- Wordmark -->
+  <text x="104" y="30" font-family="'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace" font-size="22" font-weight="700" fill="#111111" letter-spacing="0.5">sentrux</text>
 </svg>
