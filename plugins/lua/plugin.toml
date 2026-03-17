@@ -16,7 +16,7 @@ ref = "main"
 abi_version = 14
 
 [queries]
-capabilities = ["functions"]
+capabilities = ["functions", "imports"]
 
 [checksums]
 

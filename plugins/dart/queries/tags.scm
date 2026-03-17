@@ -1,23 +1,37 @@
-; Dart tags.scm — verified against actual AST
+; Dart tags.scm — functions, classes, imports, calls, type references
 
-; functions
+; ── Definitions ──
+
 (function_signature
   name: (identifier) @name) @definition.function
 
-; classes
 (class_definition
   name: (identifier) @name) @definition.class
 
-; enum
 (enum_declaration
   name: (identifier) @name) @definition.class
 
-; mixin
 (mixin_declaration
   name: (identifier) @name) @definition.class
 
-; imports: import_or_export → library_import → import_specification → configurable_uri
+; ── Imports ──
+
 (import_or_export
   (library_import
     (import_specification
       (configurable_uri) @import.module))) @import
+
+; ── Calls ──
+
+; Function call: identifier followed by selector with argument_part
+(selector
+  (argument_part)) @reference.call
+
+; Constructor: new ClassName(args)
+(new_expression
+  (type_identifier) @call.name) @call
+
+; ── Type references ──
+
+; Type annotations: Type x, List<Type>, Map<K, V>
+(type_identifier) @reference.type

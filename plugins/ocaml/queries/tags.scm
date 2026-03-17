@@ -19,3 +19,20 @@
 (open_module
   module: (module_path
     (module_name) @import.module)) @import
+
+; ── Calls ──
+; Function application: func arg
+(application_expression
+  function: (value_path
+    (value_name) @name)) @reference.call
+
+; Qualified call: Module.func
+(application_expression
+  function: (value_path
+    (module_path
+      (module_name))
+    (value_name) @name)) @reference.call
+
+; Constructor application (type reference)
+(constructor_path
+  (constructor_name) @name) @reference.type

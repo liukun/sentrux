@@ -14,3 +14,12 @@
 
 ; require
 (require_expression) @import
+
+; ── Calls ──
+; Subroutine call: func(args) — function field holds function node (bareword alias)
+(function_call_expression
+  function: (function) @name) @reference.call
+
+; Method call: $obj->method(args) — method field holds method node
+(method_call_expression
+  method: (method) @name) @reference.call

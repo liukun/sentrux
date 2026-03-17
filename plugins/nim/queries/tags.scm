@@ -17,3 +17,21 @@
   (expr) @import.module) @import
 (includeStmt
   (expr) @import.module) @import
+
+; ── Calls ──
+; Function call: procName(args) — primary contains symbol → ident, then primarySuffix(functionCall)
+(primarySuffix
+  (functionCall)) @reference.call
+
+; Command-style call: echo "hello"
+(cmdCall
+  (expr
+    (primary
+      (symbol
+        (ident) @name)))) @reference.call
+
+; ── Type references ──
+; Type usage in parameter type annotations
+(paramColonEquals
+  (symbol
+    (ident) @name)) @reference.type

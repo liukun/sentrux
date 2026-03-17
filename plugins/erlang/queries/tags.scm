@@ -12,3 +12,13 @@
 ; imports: import_attribute → atom field:module
 (import_attribute
   module: (atom) @import.module) @import
+
+; ── Calls ──
+; Local function call: func(args) — expr field holds the function atom
+(call
+  expr: (atom) @name) @reference.call
+
+; Remote function call: module:func(args) — expr holds a remote node
+(call
+  expr: (remote
+    fun: (atom) @name)) @reference.call

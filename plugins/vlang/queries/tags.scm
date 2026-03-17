@@ -12,6 +12,22 @@
 (interface_declaration
   name: (identifier) @name) @definition.interface
 
+; ── Calls ──
+; Direct function call: func(args)
+(call_expression
+  name: (reference_expression
+    (identifier) @call.name)) @call
+
+; Method/qualified call: obj.method(args)
+(call_expression
+  name: (selector_expression
+    field: (reference_expression
+      (identifier) @call.name))) @call
+
+; ── Type references ──
+(type_reference_expression
+  (identifier) @name) @reference.type
+
 ; ---- Import appendix ----
 
 (import_declaration

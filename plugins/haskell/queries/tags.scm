@@ -24,3 +24,13 @@
 (imports
   (import
     module: (module) @import.module) @import)
+
+; ── Calls ──
+; Function application: func arg
+(apply
+  function: (variable) @name) @reference.call
+
+; Qualified call: Module.func
+(apply
+  function: (qualified
+    id: (variable) @name)) @reference.call

@@ -26,3 +26,11 @@
 (list_lit
   value: (sym_lit) @_req_kw
   (#match? @_req_kw "^(require|use|import)$")) @import
+
+; ── Calls ──
+; In Clojure, function calls are list forms: (func arg1 arg2)
+; The first sym_lit child of a list_lit is the function being called.
+; We exclude special forms (def, defn, ns, etc.) via negative match.
+(list_lit
+  value: (sym_lit) @name
+  (#not-match? @name "^(def|defn|defn-|defmacro|defmethod|defmulti|defprotocol|defrecord|deftype|definterface|ns|require|use|import|if|when|cond|case|let|loop|do|fn|quote|var|try|catch|finally|throw|recur|new|set!|monitor-enter|monitor-exit)$")) @reference.call

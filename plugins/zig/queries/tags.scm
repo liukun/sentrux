@@ -1,12 +1,25 @@
-; Zig tags.scm — verified against actual AST
+; Zig tags.scm — functions, imports, calls
 
-; functions: function_declaration → identifier field:name
+; ── Definitions ──
+
 (function_declaration
   name: (identifier) @name) @definition.function
 
-; imports: variable_declaration with builtin @import
+; ── Imports ──
+
 (variable_declaration
   (builtin_function
     (builtin_identifier) @_fn
     (arguments (string) @import.module)
     (#eq? @_fn "@import"))) @import
+
+; ── Calls ──
+
+; Direct call: foo()
+(call_expression
+  function: (identifier) @call.name) @call
+
+; Method/field call: obj.method()
+(call_expression
+  function: (field_expression
+    member: (identifier) @call.name)) @call

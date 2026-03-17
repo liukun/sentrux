@@ -16,3 +16,14 @@
   function: (variable_expression) @_fn2
   argument: (_) @import.module
   (#eq? @_fn2 "import")) @import
+
+; ── Calls ──
+; Function application: func arg (general apply_expression, excluding import)
+(apply_expression
+  function: (variable_expression) @name
+  (#not-eq? @name "import")) @reference.call
+
+; Attribute path call: pkgs.mkShell { }
+(apply_expression
+  function: (select_expression
+    (variable_expression) @name)) @reference.call
