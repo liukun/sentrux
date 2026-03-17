@@ -43,7 +43,9 @@
 ## How it works
 
 ```
-sentrux scans code → scores quality → agent sees the score and improves the code → score increases → repeat
+sentrux scans code → scores quality
+  → agent sees the score and improves the code
+    → score increases → repeat
 ```
 
 
