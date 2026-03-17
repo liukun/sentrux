@@ -38,7 +38,7 @@
 </div>
 
 <div align="center">
-<img src="assets/screenshot-health.png" width="360" alt="Quality Signal 6772">
+<img src="assets/screenshot-health.gif" width="360" alt="Quality Signal 6772">
 <br>
 <sub><b>Quality: 6772</b> — 5 个根因指标：modularity 3711、acyclicity 10000、depth 6154、equality 7172、redundancy 8696</sub>
 </div>
