@@ -32,9 +32,9 @@
 </div>
 
 <div align="center">
-<sub>Ein Prompt. Ein AI-Agent. Fünf Minuten. <b>Quality: 6772</b></sub>
+<sub>Live: Claude Code Opus 4.6 baut ein FastAPI-Projekt. Selbst mit guten Prompts landet die Qualität bei 6772.</sub>
 <br>
-<sub>Sieh zu, wie Claude Code ein FastAPI-Projekt von Grund auf erstellt — während sentrux den Architekturverfall in Echtzeit zeigt.</sub>
+<sub>Nicht weil der Agent es nicht besser kann — sondern weil er ohne Sensor nicht weiß, was er verbessern soll.</sub>
 </div>
 
 <div align="center">

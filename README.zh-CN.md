@@ -32,9 +32,9 @@
 </div>
 
 <div align="center">
-<sub>一个 prompt。一个 AI Agent。五分钟。<b>Quality: 6772</b></sub>
+<sub>实况：Claude Code Opus 4.6 构建 FastAPI 项目。即使 prompt 清晰，质量仅得 6772。</sub>
 <br>
-<sub>观看 Claude Code 从零构建 FastAPI 项目 — sentrux 实时显示架构退化。</sub>
+<sub>不是 Agent 做不到更好 — 而是没有传感器，它不知道该改进什么。</sub>
 </div>
 
 <div align="center">

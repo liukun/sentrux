@@ -32,9 +32,9 @@
 </div>
 
 <div align="center">
-<sub>プロンプト1つ。AIエージェント1つ。5分間。<b>Quality: 6772</b></sub>
+<sub>実況：Claude Code Opus 4.6 が FastAPI プロジェクトを構築。良いプロンプトでも品質は 6772 止まり。</sub>
 <br>
-<sub>Claude Code が FastAPI プロジェクトをゼロから構築 — sentrux がアーキテクチャの劣化をリアルタイム表示。</sub>
+<sub>エージェントの能力不足ではない — センサーがなければ、何を改善すべきか分からないだけ。</sub>
 </div>
 
 <div align="center">
