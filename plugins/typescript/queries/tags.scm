@@ -111,7 +111,36 @@
     property: (property_identifier) @name)
   arguments: (_) @reference.call)
 
+; ---- TS-specific definitions ----
+
+; Type aliases: type Foo = ...
+(type_alias_declaration
+  name: (type_identifier) @name) @definition.class
+
+; Enum declarations
+(enum_declaration
+  name: (identifier) @name) @definition.class
+
+; Type references
+(type_identifier) @reference.type
+
 ; ---- Import appendix (custom) ----
 
+; ES6 import
 (import_statement
+  source: (string) @import.module) @import
+
+; CommonJS require()
+(call_expression
+  function: (identifier) @_fn
+  arguments: (arguments (string) @import.module)
+  (#eq? @_fn "require")) @import
+
+; Dynamic import()
+(call_expression
+  function: (import)
+  arguments: (arguments (string) @import.module)) @import
+
+; Re-exports
+(export_statement
   source: (string) @import.module) @import

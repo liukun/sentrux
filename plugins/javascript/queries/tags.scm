@@ -102,5 +102,21 @@
 
 ; ---- Import appendix (custom) ----
 
+; ES6 import
 (import_statement
+  source: (string) @import.module) @import
+
+; CommonJS require() — captured as import, not call
+(call_expression
+  function: (identifier) @_fn
+  arguments: (arguments (string) @import.module)
+  (#eq? @_fn "require")) @import
+
+; Dynamic import()
+(call_expression
+  function: (import)
+  arguments: (arguments (string) @import.module)) @import
+
+; Re-exports: export { foo } from 'module'
+(export_statement
   source: (string) @import.module) @import

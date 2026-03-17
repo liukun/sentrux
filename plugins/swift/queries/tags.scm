@@ -5,8 +5,17 @@
 (class_declaration
   name: (type_identifier) @name) @definition.class
 
+(struct_declaration
+  name: (type_identifier) @name) @definition.class
+
+(enum_declaration
+  name: (type_identifier) @name) @definition.class
+
 (protocol_declaration
   name: (type_identifier) @name) @definition.interface
+
+(extension_declaration
+  (user_type (type_identifier) @name)) @definition.class
 
 (function_declaration
     name: (simple_identifier) @name) @definition.function
