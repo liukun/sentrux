@@ -6,11 +6,11 @@
   <img alt="sentrux" src="assets/logo-dark.svg?v=2" width="220">
 </picture>
 
-<br><br>
-
-**AIエージェントがコードを書く。<br>sentrux がアーキテクチャを可視化し、品質をスコアリングする — リアルタイムで。**
-
 <br>
+
+**AIエージェントのフィードバックループを閉じるセンサー。<br>コード品質の再帰的自己改善を実現。**
+
+
 
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)

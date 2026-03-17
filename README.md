@@ -6,11 +6,10 @@
   <img alt="sentrux" src="assets/logo-dark.svg?v=2" width="220">
 </picture>
 
-<br><br>
-
-**Sentrux is a sensor that helps AI agents close the feedback loop, enabling recursive self-improvement of code quality.**
-
 <br>
+
+**The sensor that helps AI agents close the feedback loop.<br>Recursive self-improvement of code quality.**
+
 
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)

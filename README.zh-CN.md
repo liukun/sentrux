@@ -6,11 +6,11 @@
   <img alt="sentrux" src="assets/logo-dark.svg?v=2" width="220">
 </picture>
 
-<br><br>
-
-**AI Agent 负责写代码。<br>sentrux 实时展示架构，评估代码质量。**
-
 <br>
+
+**帮助 AI Agent 闭合反馈回路的传感器。<br>实现代码质量的递归式自我改进。**
+
+
 
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)

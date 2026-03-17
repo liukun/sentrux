@@ -6,11 +6,11 @@
   <img alt="sentrux" src="assets/logo-dark.svg?v=2" width="220">
 </picture>
 
-<br><br>
-
-**Dein AI-Agent schreibt den Code.<br>sentrux zeigt dir die Architektur und bewertet die Qualität — live.**
-
 <br>
+
+**Der Sensor, der AI-Agents hilft, den Feedback-Loop zu schließen.<br>Rekursive Selbstverbesserung der Codequalität.**
+
+
 
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
