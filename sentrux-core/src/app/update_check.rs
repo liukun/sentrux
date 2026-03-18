@@ -127,13 +127,15 @@ impl TelemetryState {
     /// After this call, both in-memory state and disk file are zeroed.
     fn snapshot_and_reset(&mut self) -> TelemetrySnapshot {
         // Merge disk (previous sessions) + in-memory (current session)
+        // Counters (scans, mcp_calls, gate_runs): sum across sessions
+        // State values (files, grade): use latest (in-memory wins if set, else disk)
         let disk = load_pending_from_disk();
         let snap = TelemetrySnapshot {
             scans: self.scans + disk.scans,
             mcp_calls: self.mcp_calls + disk.mcp_calls,
             gate_runs: self.gate_runs + disk.gate_runs,
-            files: std::cmp::max(self.files, disk.files),
-            grade: std::cmp::max(self.grade, disk.grade),
+            files: if self.files > 0 { self.files } else { disk.files },
+            grade: if self.grade > 0 { self.grade } else { disk.grade },
         };
 
         // Zero everything
@@ -149,8 +151,9 @@ impl TelemetryState {
         self.scans += snap.scans;
         self.mcp_calls += snap.mcp_calls;
         self.gate_runs += snap.gate_runs;
-        self.files = std::cmp::max(self.files, snap.files);
-        self.grade = std::cmp::max(self.grade, snap.grade);
+        // files/grade: keep latest (current activity wins if it happened during ping)
+        if self.files == 0 { self.files = snap.files; }
+        if self.grade == 0 { self.grade = snap.grade; }
         self.persist();
     }
 }
@@ -346,14 +349,17 @@ pub fn check_for_updates_async(current_version: &str) {
 ///   Phase 2 (lock released): send the HTTP ping (slow, ~3s timeout).
 ///   Phase 3 (lock held): on failure, restore the snapshot.
 fn check_and_notify(current_version: &str) {
+    // Save timestamp FIRST — prevents duplicate pings if GUI + MCP start simultaneously.
+    // If the ping fails, counters are restored but timestamp stays (retry after 24h).
+    let new = if is_new_user() { "1" } else { "0" };
+    save_check_timestamp();
+
     // ── Phase 1: Atomic snapshot under lock ──
     let snapshot = match TELEMETRY_LOCK.lock() {
         Ok(mut state) => state.snapshot_and_reset(),
         Err(_) => return, // poisoned mutex, bail
     };
     // Lock released here — record_* calls are unblocked.
-
-    let new = if is_new_user() { "1" } else { "0" };
     let mode = detect_mode();
     let plugins = crate::analysis::lang_registry::plugin_count();
     let tier = crate::license::current_tier();
@@ -371,7 +377,7 @@ fn check_and_notify(current_version: &str) {
         snapshot.mcp_calls,  // MCP calls since last ping
         snapshot.gate_runs,  // gate runs since last ping
         snapshot.files,      // last scanned file count
-        snapshot.grade,      // last quality score (0-100 integer, 0=none)
+        snapshot.grade,      // last quality score (0-10000, 0=no scan)
         dev,                 // 1 = internal/dev traffic
     );
 
@@ -400,7 +406,7 @@ fn check_and_notify(current_version: &str) {
     match latest {
         Some(latest_version) => {
             // ── Phase 3b: Ping succeeded — counters already zeroed in Phase 1 ──
-            save_check_timestamp();
+            // Timestamp already saved before Phase 1 (dedup guard).
             if is_newer(current_version, latest_version) {
                 set_latest_version(latest_version);
             } else {
