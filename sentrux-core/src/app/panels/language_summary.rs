@@ -105,7 +105,7 @@ fn draw_lang_row(
     let version = lang_registry::plugin_version(lang).unwrap_or("?");
     ui.painter().text(
         egui::pos2(rect.left() + 14.0, cy), egui::Align2::LEFT_CENTER,
-        format!("{} v{}", lang, version), font.clone(), tc.text_primary,
+        format!("{} (plugin {})", lang, version), font.clone(), tc.text_primary,
     );
     ui.painter().text(
         egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
